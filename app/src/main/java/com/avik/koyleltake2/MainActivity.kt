@@ -49,6 +49,18 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.LocaleList
 import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat.checkSelfPermission
+import android.location.Location
+import android.widget.EditText
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.CompoundButton
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.util.Log
 
 class MainActivity : AppCompatActivity() {
 
@@ -56,10 +68,45 @@ class MainActivity : AppCompatActivity() {
     private val logEntries = mutableListOf<LogEntry>()
     private val sharedPreferences by lazy { getSharedPreferences("log_entries", MODE_PRIVATE) }
     private var hebrewTimestamps = mutableListOf<String>()
+    private lateinit var customGeofencingManager: CustomGeofencingManager
+    private var currentLocation: Location? = null
+    private lateinit var locationManager: android.location.LocationManager
+    private lateinit var geofenceBroadcastReceiver: CustomGeofenceBroadcastReceiver
+
+    // Add ActivityResultLauncher for location permissions
+    private val locationPermissionRequest = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        when {
+            permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true -> {
+                // Precise location access granted
+                getCurrentLocation()
+            }
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true -> {
+                // Only approximate location access granted
+                getCurrentLocation()
+            }
+            else -> {
+                // No location access granted
+                Toast.makeText(this, getString(R.string.location_permission_needed), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     // Add ActivityResultLauncher for import
     private val importJsonLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { importJsonFromUri(it) }
+    }
+    
+    // Add ActivityResultLauncher for export
+    private var exportJsonString: String? = null
+    private val exportJsonLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+        uri?.let { 
+            exportJsonString?.let { json ->
+                contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+                Toast.makeText(this, getString(R.string.exported_to_json), Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     // Store selected colors
@@ -70,6 +117,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val PREF_LANGUAGE = "pref_language"
+        private const val BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE = 1002
     }
 
     private fun setLocale(context: Context, language: String, forceRestart: Boolean = false) {
@@ -148,6 +196,17 @@ class MainActivity : AppCompatActivity() {
         
         setContentView(R.layout.activity_main)
 
+        // Initialize geofencing and location services
+        customGeofencingManager = CustomGeofencingManager(this)
+        locationManager = getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+        
+        // Initialize and register broadcast receiver
+        geofenceBroadcastReceiver = CustomGeofenceBroadcastReceiver()
+        registerReceiver(
+            geofenceBroadcastReceiver, 
+            IntentFilter(CustomGeofencingManager.ACTION_GEOFENCE_TRANSITION)
+        )
+
         // Load user-selected colors
         val prefs = getSharedPreferences("color_prefs", MODE_PRIVATE)
         selectedMainColor = prefs.getInt("main_color", Color.parseColor("#1976D2"))
@@ -222,6 +281,9 @@ class MainActivity : AppCompatActivity() {
             when (menuItem.itemId) {
                 R.id.nav_add_time_manually -> {
                     addTimeManually()
+                }
+                R.id.nav_manage_geofences -> {
+                    showManageGeofencesDialog()
                 }
                 R.id.nav_export_json -> {
                     exportToJson()
@@ -318,6 +380,7 @@ class MainActivity : AppCompatActivity() {
             obj.put("timestamp", entry.timestamp)
             obj.put("type", entry.type.name)
             entry.amount?.let { obj.put("amount", it) }
+            entry.locationName?.let { obj.put("locationName", it) }
             jsonArray.put(obj)
         }
         editor.putString("log_entries_json", jsonArray.toString())
@@ -342,8 +405,9 @@ class MainActivity : AppCompatActivity() {
                     else 
                         LogEntryType.NORMAL
                     val amount = if (obj.has("amount")) obj.getInt("amount") else null
+                    val locationName = if (obj.has("locationName")) obj.getString("locationName") else null
                     
-                    logEntries.add(LogEntry(id, timestamp, type, amount))
+                    logEntries.add(LogEntry(id, timestamp, type, amount, locationName))
                     hebrewTimestamps.add(formatTimestamp(id))
                 }
             } catch (e: Exception) {
@@ -462,30 +526,10 @@ class MainActivity : AppCompatActivity() {
             obj.put("timestamp", entry.timestamp)
             jsonArray.put(obj)
         }
-        val jsonString = jsonArray.toString(2)
-        // Use SAF to let user pick where to save
-        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "application/json"
-            putExtra(Intent.EXTRA_TITLE, "log_entries.json")
-        }
-        startActivityForResult(intent, EXPORT_JSON_REQUEST_CODE)
-        exportJsonString = jsonString
-    }
-
-    private var exportJsonString: String? = null
-    private val EXPORT_JSON_REQUEST_CODE = 1001
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == EXPORT_JSON_REQUEST_CODE && resultCode == RESULT_OK) {
-            data?.data?.let { uri ->
-                exportJsonString?.let { json ->
-                    contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
-                    Toast.makeText(this, getString(R.string.exported_to_json), Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+        exportJsonString = jsonArray.toString(2)
+        
+        // Launch the document creation activity
+        exportJsonLauncher.launch("log_entries.json")
     }
 
     private fun importFromJson() {
@@ -733,9 +777,37 @@ class MainActivity : AppCompatActivity() {
         val fabCar: com.google.android.material.floatingactionbutton.FloatingActionButton = findViewById(R.id.fabCar)
         fabCar.backgroundTintList = android.content.res.ColorStateList.valueOf(mainColor)
 
-        // RecyclerView stripes
+        // RecyclerView stripes - Remove all decorations and recreate with new colors
         val recyclerView: RecyclerView = findViewById(R.id.recyclerViewTimestamps)
-        recyclerView.invalidateItemDecorations()
+        
+        // Clear all existing item decorations
+        while (recyclerView.itemDecorationCount > 0) {
+            recyclerView.removeItemDecorationAt(0)
+        }
+        
+        // Add new item decoration with updated colors
+        recyclerView.addItemDecoration(object : RecyclerView.ItemDecoration() {
+            private val colors = listOf(selectedBgColor1, selectedBgColor2)
+            private val paint = Paint()
+            override fun onDraw(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
+                val childCount = parent.childCount
+                for (i in 0 until childCount) {
+                    val child = parent.getChildAt(i)
+                    val position = parent.getChildAdapterPosition(child)
+                    if (position == RecyclerView.NO_POSITION) continue
+                    paint.color = colors[position % colors.size]
+                    c.drawRect(
+                        0f,
+                        child.top.toFloat(),
+                        parent.width.toFloat(),
+                        child.bottom.toFloat(),
+                        paint
+                    )
+                }
+            }
+        })
+        
+        // Update adapter
         recyclerView.adapter = LogEntryAdapter(logEntries, hebrewTimestamps, { logEntry ->
             deleteLogEntry(logEntry)
         }, textColor)
@@ -774,5 +846,446 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    private fun showManageGeofencesDialog() {
+        // Check for location permissions
+        if (!hasLocationPermissions()) {
+            requestLocationPermissions()
+            return
+        }
+        
+        // Create the dialog
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.menu_manage_geofences))
+            .create()
+        
+        // Inflate the dialog layout
+        val view = layoutInflater.inflate(R.layout.dialog_manage_geofences, null)
+        dialog.setView(view)
+        
+        // Initialize the UI components
+        val rvGeofences = view.findViewById<RecyclerView>(R.id.rvGeofences)
+        val tvNoGeofences = view.findViewById<TextView>(R.id.tvNoGeofences)
+        val btnAddGeofence = view.findViewById<Button>(R.id.btnAddGeofence)
+        
+        // Get the current geofences
+        val geofences = customGeofencingManager.getGeofences()
+        
+        // Show/hide empty state
+        if (geofences.isEmpty()) {
+            tvNoGeofences.visibility = View.VISIBLE
+            rvGeofences.visibility = View.GONE
+        } else {
+            tvNoGeofences.visibility = View.GONE
+            rvGeofences.visibility = View.VISIBLE
+            
+            // Set up the RecyclerView
+            rvGeofences.layoutManager = LinearLayoutManager(this)
+            val adapter = GeofenceAdapter(geofences) { geofence ->
+                // Delete geofence
+                customGeofencingManager.removeGeofence(
+                    geofence.id,
+                    onSuccess = {
+                        Toast.makeText(this, getString(R.string.geofence_deleted), Toast.LENGTH_SHORT).show()
+                        // Refresh the dialog
+                        dialog.dismiss()
+                        showManageGeofencesDialog()
+                    },
+                    onError = { e ->
+                        Toast.makeText(this, "${getString(R.string.geofence_error)}: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+            rvGeofences.adapter = adapter
+        }
+        
+        // Handle add geofence button click
+        btnAddGeofence.setOnClickListener {
+            dialog.dismiss()
+            showAddGeofenceDialog()
+        }
+        
+        dialog.show()
+    }
+    
+    private fun showAddGeofenceDialog() {
+        // Check for location permissions
+        if (!hasLocationPermissions()) {
+            requestLocationPermissions()
+            return
+        }
+        
+        // Inflate layout for the dialog
+        val dialogLayout = layoutInflater.inflate(R.layout.dialog_add_geofence, null)
+        
+        // Get references to views
+        val etName = dialogLayout.findViewById<EditText>(R.id.etGeofenceName)
+        val etRadius = dialogLayout.findViewById<EditText>(R.id.etRadius)
+        val rgLocationSource = dialogLayout.findViewById<RadioGroup>(R.id.rgLocationSource)
+        val rbCurrentLocation = dialogLayout.findViewById<RadioButton>(R.id.rbCurrentLocation)
+        val rbEnterCoordinates = dialogLayout.findViewById<RadioButton>(R.id.rbEnterCoordinates)
+        val coordinatesContainer = dialogLayout.findViewById<LinearLayout>(R.id.coordinatesContainer)
+        val etLatitude = dialogLayout.findViewById<EditText>(R.id.etLatitude)
+        val etLongitude = dialogLayout.findViewById<EditText>(R.id.etLongitude)
+        
+        // Get current location before showing dialog
+        if (currentLocation == null) {
+            Toast.makeText(this, "Getting current location...", Toast.LENGTH_SHORT).show()
+            getCurrentLocation()
+        }
+        
+        // Set up radio button listeners
+        rbCurrentLocation.setOnCheckedChangeListener { _: CompoundButton, isChecked: Boolean ->
+            if (isChecked) {
+                coordinatesContainer.visibility = View.GONE
+                
+                // If we don't have location, request it
+                if (currentLocation == null) {
+                    Toast.makeText(this, "Getting current location...", Toast.LENGTH_SHORT).show()
+                    getCurrentLocation()
+                }
+            }
+        }
+        
+        rbEnterCoordinates.setOnCheckedChangeListener { _: CompoundButton, isChecked: Boolean ->
+            if (isChecked) {
+                coordinatesContainer.visibility = View.VISIBLE
+                
+                // Pre-fill with current location if available
+                currentLocation?.let {
+                    etLatitude.setText(it.latitude.toString())
+                    etLongitude.setText(it.longitude.toString())
+                }
+            }
+        }
+        
+        // Create the dialog
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.add_geofence))
+            .setView(dialogLayout)
+            .setPositiveButton(getString(R.string.save)) { _, _ ->
+                // Get the values from the form
+                val name = etName.text.toString().trim()
+                val radiusStr = etRadius.text.toString().trim()
+                
+                // Validate inputs
+                if (name.isEmpty()) {
+                    Toast.makeText(this, "Please enter a name", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                
+                val radius = if (radiusStr.isEmpty()) 100f else radiusStr.toFloat()
+                
+                // Get location based on selected option
+                if (rbCurrentLocation.isChecked) {
+                    // Use current location
+                    val location = currentLocation
+                    if (location == null) {
+                        Toast.makeText(this, "Unable to get current location. Try again or enter coordinates manually.", Toast.LENGTH_LONG).show()
+                        
+                        // Show dialog again after a short delay
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            showAddGeofenceDialog()
+                        }, 1000)
+                        
+                        return@setPositiveButton
+                    }
+                    
+                    addGeofence(name, location.latitude, location.longitude, radius)
+                } else {
+                    // Use entered coordinates
+                    val latStr = etLatitude.text.toString().trim()
+                    val lngStr = etLongitude.text.toString().trim()
+                    
+                    if (latStr.isEmpty() || lngStr.isEmpty()) {
+                        Toast.makeText(this, "Please enter valid coordinates", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
+                    
+                    try {
+                        val latitude = latStr.toDouble()
+                        val longitude = lngStr.toDouble()
+                        addGeofence(name, latitude, longitude, radius)
+                    } catch (e: NumberFormatException) {
+                        Toast.makeText(this, "Invalid coordinates format", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .create()
+            
+        dialog.show()
+    }
+    
+    private fun addGeofence(name: String, latitude: Double, longitude: Double, radius: Float) {
+        customGeofencingManager.addGeofence(
+            name,
+            latitude,
+            longitude,
+            radius,
+            onSuccess = {
+                Toast.makeText(this, getString(R.string.geofence_saved), Toast.LENGTH_SHORT).show()
+            },
+            onError = { e ->
+                Toast.makeText(this, "${getString(R.string.geofence_error)}: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+    
+    private fun hasLocationPermissions(): Boolean {
+        val fineLocation = ContextCompat.checkSelfPermission(
+            this, 
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        
+        return fineLocation
+    }
+    
+    private fun hasBackgroundLocationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+    }
+    
+    private fun requestLocationPermissions() {
+        locationPermissionRequest.launch(
+            arrayOf(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+    }
+    
+    private fun requestBackgroundLocationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+                BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE
+            )
+        }
+    }
+    
+    private fun getCurrentLocation() {
+        if (!hasLocationPermissions()) {
+            requestLocationPermissions()
+            return
+        }
+        
+        try {
+            // Get location manager
+            val locationManager = getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+            
+            // Check if GPS is enabled
+            val isGpsEnabled = locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+            val isNetworkEnabled = locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
+            
+            if (!isGpsEnabled && !isNetworkEnabled) {
+                // GPS is not enabled, show dialog to enable it
+                AlertDialog.Builder(this)
+                    .setTitle("GPS Required")
+                    .setMessage("Please enable GPS to use location features")
+                    .setPositiveButton("Go to Settings") { _, _ ->
+                        startActivity(Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+                return
+            }
+            
+            // Show progress dialog
+            val progressDialog = AlertDialog.Builder(this)
+                .setTitle("Getting Location")
+                .setMessage("Please wait while we get your location...")
+                .setCancelable(false)
+                .create()
+            
+            progressDialog.show()
+            
+            // Create location listener
+            val locationListener = object : android.location.LocationListener {
+                override fun onLocationChanged(location: Location) {
+                    // We got a location!
+                    progressDialog.dismiss()
+                    currentLocation = location
+                    
+                    // Remove updates to save battery
+                    locationManager.removeUpdates(this)
+                    
+                    Toast.makeText(this@MainActivity, 
+                        "Location acquired: ${location.latitude}, ${location.longitude}", 
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                
+                @Deprecated("Deprecated in Java")
+                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
+                    // Not used
+                }
+                
+                @Deprecated("Deprecated in Java")
+                override fun onProviderEnabled(provider: String) {
+                    // Try to get location from newly enabled provider
+                }
+                
+                @Deprecated("Deprecated in Java")
+                override fun onProviderDisabled(provider: String) {
+                    // Provider disabled, try another one
+                }
+            }
+            
+            // Try to get location
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                // Request from GPS first
+                if (isGpsEnabled) {
+                    locationManager.requestLocationUpdates(
+                        android.location.LocationManager.GPS_PROVIDER,
+                        0,
+                        0f,
+                        locationListener
+                    )
+                }
+                
+                // Also try network provider
+                if (isNetworkEnabled) {
+                    locationManager.requestLocationUpdates(
+                        android.location.LocationManager.NETWORK_PROVIDER,
+                        0,
+                        0f,
+                        locationListener
+                    )
+                }
+                
+                // Check if we can get last known location first (faster)
+                val lastGpsLocation = if (isGpsEnabled) 
+                    locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER) else null
+                val lastNetworkLocation = if (isNetworkEnabled) 
+                    locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER) else null
+                
+                // Use the most recent location
+                val bestLastLocation = when {
+                    lastGpsLocation != null && lastNetworkLocation != null -> 
+                        if (lastGpsLocation.time > lastNetworkLocation.time) lastGpsLocation else lastNetworkLocation
+                    lastGpsLocation != null -> lastGpsLocation
+                    lastNetworkLocation != null -> lastNetworkLocation
+                    else -> null
+                }
+                
+                // If we have a recent location, use it
+                if (bestLastLocation != null && System.currentTimeMillis() - bestLastLocation.time < 5 * 60 * 1000) { // 5 minutes
+                    locationListener.onLocationChanged(bestLastLocation)
+                } else {
+                    // Set a timeout for location updates
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        if (currentLocation == null) {
+                            try {
+                                locationManager.removeUpdates(locationListener)
+                                progressDialog.dismiss()
+                                
+                                // Ask user what to do
+                                AlertDialog.Builder(this)
+                                    .setTitle("Location Timeout")
+                                    .setMessage("Could not get your location. Would you like to retry or enter coordinates manually?")
+                                    .setPositiveButton("Retry") { _, _ -> getCurrentLocation() }
+                                    .setNegativeButton("Enter Manually") { _, _ -> 
+                                        // Show a dialog to enter coordinates manually
+                                        val dialogView = layoutInflater.inflate(R.layout.dialog_add_geofence, null)
+                                        val rbEnterCoordinates = dialogView.findViewById<RadioButton>(R.id.rbEnterCoordinates)
+                                        val coordinatesContainer = dialogView.findViewById<LinearLayout>(R.id.coordinatesContainer)
+                                        
+                                        // Show coordinate fields
+                                        rbEnterCoordinates.isChecked = true
+                                        coordinatesContainer.visibility = View.VISIBLE
+                                        
+                                        AlertDialog.Builder(this)
+                                            .setTitle("Enter Coordinates")
+                                            .setView(dialogView)
+                                            .setPositiveButton("OK") { _, _ ->
+                                                val latitudeField = dialogView.findViewById<EditText>(R.id.etLatitude)
+                                                val longitudeField = dialogView.findViewById<EditText>(R.id.etLongitude)
+                                                
+                                                try {
+                                                    val latitude = latitudeField.text.toString().toDouble()
+                                                    val longitude = longitudeField.text.toString().toDouble()
+                                                    
+                                                    // Create a location object
+                                                    currentLocation = Location("manual").apply {
+                                                        this.latitude = latitude
+                                                        this.longitude = longitude
+                                                        this.accuracy = 10f
+                                                    }
+                                                    
+                                                    Toast.makeText(this, 
+                                                        "Coordinates set: $latitude, $longitude", 
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(this, 
+                                                        "Invalid coordinates", 
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            }
+                                            .setNegativeButton("Cancel", null)
+                                            .show()
+                                    }
+                                    .show()
+                            } catch (e: SecurityException) {
+                                progressDialog.dismiss()
+                                Toast.makeText(this, "Location permission issue", Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                progressDialog.dismiss()
+                                Toast.makeText(this, "Error getting location: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }, 30000) // 30 seconds timeout
+                }
+            } else {
+                progressDialog.dismiss()
+                requestLocationPermissions()
+            }
+        } catch (e: SecurityException) {
+            Toast.makeText(this, getString(R.string.location_permission_needed), Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Location error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        
+        if (requestCode == BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Background location permission granted
+                showManageGeofencesDialog()
+            } else {
+                Toast.makeText(this, getString(R.string.location_permission_needed), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        
+        // Unregister broadcast receiver
+        try {
+            unregisterReceiver(geofenceBroadcastReceiver)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error unregistering receiver", e)
+        }
     }
 }
