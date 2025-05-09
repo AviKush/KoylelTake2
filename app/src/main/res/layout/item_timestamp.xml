@@ -1,91 +1,126 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="96dp"
-    android:orientation="horizontal"
-    android:padding="16dp"
-    android:gravity="center_vertical"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
     android:clickable="true"
     android:foreground="?android:attr/selectableItemBackground">
 
-    <!-- Left: Time and Date -->
+    <!-- Main layout with time, date, day, etc. -->
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="center_vertical|start">
+        android:layout_width="match_parent"
+        android:layout_height="96dp"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/tvTime"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="08:47"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="#222222" />
-
-        <TextView
-            android:id="@+id/tvDate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="May 2, 2025"
-            android:textSize="16sp"
-            android:textColor="#666666"
-            android:maxLines="2"
-            android:ellipsize="end"
-            android:layout_marginTop="4dp" />
-    </LinearLayout>
-
-    <!-- Center: Day of week and סדר -->
-    <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1">
+        <!-- Left: Time and Date -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
+            android:layout_weight="1"
             android:orientation="vertical"
-            android:gravity="center">
+            android:gravity="center_vertical|start">
+
             <TextView
-                android:id="@+id/tvDayOfWeek"
+                android:id="@+id/tvTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Monday"
-                android:textSize="20sp"
+                android:text="08:47"
+                android:textSize="24sp"
                 android:textStyle="bold"
                 android:textColor="#222222" />
+
             <TextView
-                android:id="@+id/tvSeder"
+                android:id="@+id/tvDate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="סדר א'"
+                android:text="May 2, 2025"
                 android:textSize="16sp"
-                android:textColor="#2196F3" />
+                android:textColor="#666666"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:layout_marginTop="4dp" />
         </LinearLayout>
-    </FrameLayout>
 
-    <!-- Right: Car Icon and Delete Button -->
-    <ImageButton
-        android:id="@+id/ivCar"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:src="@drawable/ic_car"
-        android:contentDescription="Car Entry"
-        android:background="@android:color/transparent"
-        android:scaleType="centerInside"
-        android:tint="#2196F3"
-        android:layout_marginStart="8dp"
+        <!-- Center: Day of week and סדר -->
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center">
+                <TextView
+                    android:id="@+id/tvDayOfWeek"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Monday"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#222222" />
+                <TextView
+                    android:id="@+id/tvSeder"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="סדר א'"
+                    android:textSize="16sp"
+                    android:textColor="#2196F3" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Right: Icons and Delete Button -->
+        <ImageButton
+            android:id="@+id/ivCar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_car"
+            android:contentDescription="Car Entry"
+            android:background="@android:color/transparent"
+            android:scaleType="centerInside"
+            android:tint="#2196F3"
+            android:layout_marginStart="8dp"
+            android:visibility="gone" />
+            
+        <ImageButton
+            android:id="@+id/ivLocation"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_location_24"
+            android:contentDescription="Location Entry"
+            android:background="@android:color/transparent"
+            android:scaleType="centerInside"
+            android:tint="#4CAF50"
+            android:layout_marginStart="8dp"
+            android:visibility="gone" />
+            
+        <ImageButton
+            android:id="@+id/btnDelete"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_delete_24"
+            android:contentDescription="Delete"
+            android:background="?android:attr/selectableItemBackground"
+            android:scaleType="centerInside"
+            android:tint="#D32F2F"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <!-- Location name (shown only for geofence entries) -->
+    <TextView
+        android:id="@+id/tvLocationName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Location Name"
+        android:textSize="14sp"
+        android:textStyle="italic"
+        android:textColor="#4CAF50"
+        android:gravity="end"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
         android:visibility="gone" />
-    <ImageButton
-        android:id="@+id/btnDelete"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:src="@drawable/ic_delete_24"
-        android:contentDescription="Delete"
-        android:background="?android:attr/selectableItemBackground"
-        android:scaleType="centerInside"
-        android:tint="#D32F2F"
-        android:layout_marginStart="8dp" />
 
 </LinearLayout> 

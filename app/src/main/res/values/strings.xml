@@ -33,4 +33,25 @@
     <string name="failed_to_import_json">Failed to import JSON</string>
     <string name="seder_a">Seder A</string>
     <string name="seder_b">Seder B</string>
+    
+    <!-- Geofence related strings -->
+    <string name="menu_manage_geofences">Manage Locations</string>
+    <string name="add_geofence">Add Location</string>
+    <string name="geofence_name">Location Name</string>
+    <string name="geofence_radius">Radius (meters)</string>
+    <string name="geofence_saved">Location saved</string>
+    <string name="geofence_deleted">Location deleted</string>
+    <string name="geofence_error">Error managing location</string>
+    <string name="location_permission_needed">Location permission is needed for geofencing</string>
+    <string name="current_location">Use Current Location</string>
+    <string name="enter_coordinates">Enter Coordinates</string>
+    <string name="latitude">Latitude</string>
+    <string name="longitude">Longitude</string>
+    
+    <!-- Custom geofence notification strings -->
+    <string name="location_monitoring_title">Location Monitoring</string>
+    <string name="location_monitoring_text">Monitoring location for automatic logging</string>
+    <string name="geofence_entered">Entered location: %1$s</string>
+    <string name="no_geofences">No locations added yet</string>
+    <string name="delete_geofence">Delete location</string>
 </resources>

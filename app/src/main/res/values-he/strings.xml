@@ -33,4 +33,25 @@
     <string name="failed_to_import_json">הייבוא מ-JSON נכשל</string>
     <string name="seder_a">א</string>
     <string name="seder_b">ב</string>
+    
+    <!-- Geofence related strings -->
+    <string name="menu_manage_geofences">ניהול מיקומים</string>
+    <string name="add_geofence">הוסף מיקום</string>
+    <string name="geofence_name">שם המיקום</string>
+    <string name="geofence_radius">רדיוס (מטרים)</string>
+    <string name="geofence_saved">המיקום נשמר</string>
+    <string name="geofence_deleted">המיקום נמחק</string>
+    <string name="geofence_error">שגיאה בניהול המיקום</string>
+    <string name="location_permission_needed">יש צורך בהרשאת מיקום עבור מעקב מיקומים</string>
+    <string name="current_location">השתמש במיקום הנוכחי</string>
+    <string name="enter_coordinates">הזן קואורדינטות</string>
+    <string name="latitude">קו רוחב</string>
+    <string name="longitude">קו אורך</string>
+    
+    <!-- Custom geofence notification strings -->
+    <string name="location_monitoring_title">מעקב מיקום</string>
+    <string name="location_monitoring_text">מעקב אחר מיקום לרישום אוטומטי</string>
+    <string name="geofence_entered">נכנסת למיקום: %1$s</string>
+    <string name="no_geofences">עדיין לא נוספו מיקומים</string>
+    <string name="delete_geofence">מחק מיקום</string>
 </resources> 

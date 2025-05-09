@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/etGeofenceName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/geofence_name"
+        android:inputType="text"
+        android:importantForAutofill="no"
+        android:maxLines="1" />
+
+    <EditText
+        android:id="@+id/etRadius"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:hint="@string/geofence_radius"
+        android:inputType="numberDecimal"
+        android:importantForAutofill="no"
+        android:text="100" />
+
+    <RadioGroup
+        android:id="@+id/rgLocationSource"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="vertical">
+
+        <RadioButton
+            android:id="@+id/rbCurrentLocation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/current_location" />
+
+        <RadioButton
+            android:id="@+id/rbEnterCoordinates"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/enter_coordinates" />
+
+    </RadioGroup>
+
+    <LinearLayout
+        android:id="@+id/coordinatesContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <EditText
+            android:id="@+id/etLatitude"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/latitude"
+            android:inputType="numberDecimal|numberSigned"
+            android:importantForAutofill="no" />
+
+        <EditText
+            android:id="@+id/etLongitude"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="@string/longitude"
+            android:inputType="numberDecimal|numberSigned"
+            android:importantForAutofill="no" />
+
+    </LinearLayout>
+
+</LinearLayout> 

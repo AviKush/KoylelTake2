@@ -50,6 +50,8 @@ class LogEntryAdapter(
         private val tvSeder: TextView = itemView.findViewById(R.id.tvSeder)
         private val btnDelete: ImageButton = itemView.findViewById(R.id.btnDelete)
         private val ivCar: ImageButton? = itemView.findViewById(R.id.ivCar)
+        private val ivLocation: ImageButton? = itemView.findViewById(R.id.ivLocation)
+        private val tvLocationName: TextView? = itemView.findViewById(R.id.tvLocationName)
 
         fun bind(logEntry: LogEntry, hebrewTimestamp: String, textColor: Int) {
             val date = java.util.Date(logEntry.id)
@@ -70,10 +72,11 @@ class LogEntryAdapter(
             tvDate.setTextColor(textColor)
             tvDayOfWeek.setTextColor(textColor)
             tvSeder.setTextColor(textColor)
+            tvLocationName?.setTextColor(textColor)
 
             // Determine seder based on hour and entry type
-            val seder = if (logEntry.type == LogEntryType.CAR) {
-                "" // Don't show seder for car entries
+            val seder = if (logEntry.type == LogEntryType.CAR || logEntry.type == LogEntryType.GEOFENCE) {
+                "" // Don't show seder for car or geofence entries
             } else {
                 when (hour) {
                     in 9..12 -> "סדר א'"
@@ -83,10 +86,24 @@ class LogEntryAdapter(
             }
             tvSeder.text = seder
 
+            // Handle car icon
             if (logEntry.type == LogEntryType.CAR) {
                 ivCar?.visibility = View.VISIBLE
-            } else {
+                ivLocation?.visibility = View.GONE
+                tvLocationName?.visibility = View.GONE
+            } 
+            // Handle location icon
+            else if (logEntry.type == LogEntryType.GEOFENCE) {
                 ivCar?.visibility = View.GONE
+                ivLocation?.visibility = View.VISIBLE
+                tvLocationName?.visibility = View.VISIBLE
+                tvLocationName?.text = logEntry.locationName ?: ""
+            }
+            // Handle normal entries
+            else {
+                ivCar?.visibility = View.GONE
+                ivLocation?.visibility = View.GONE
+                tvLocationName?.visibility = View.GONE
             }
 
             btnDelete.setOnClickListener { onDeleteClick(logEntry) }
