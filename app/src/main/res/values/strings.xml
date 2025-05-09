@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">KoylelTake2</string>
+    <string name="menu_export_json">Export to JSON</string>
+    <string name="menu_import_json">Import JSON</string>
+    <string name="menu_clear_all">Clear All</string>
+    <string name="clear_all_confirmation">Are you sure you want to clear all log entries?</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="menu_add_time_manually">Add Time Manually</string>
+    <string name="menu_sum_car_entries">Sum Car Entries</string>
+    <string name="menu_language">Language</string>
+    <string name="menu_language_english">English</string>
+    <string name="menu_language_hebrew">Hebrew</string>
+    <string name="main_color">Main color:</string>
+    <string name="background_color_1">Background color 1:</string>
+    <string name="background_color_2">Background color 2:</string>
+    <string name="text_color">Text color:</string>
+    <string name="choose_main_color">Choose main color</string>
+    <string name="choose_background_color_1">Choose background color 1</string>
+    <string name="choose_background_color_2">Choose background color 2</string>
+    <string name="choose_text_color">Choose text color</string>
+    <string name="reset">Reset</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="colors_saved">Colors saved!</string>
+    <string name="choose_colors">Choose Colors</string>
+    <string name="total_car_entries">Total car entries: %1$d</string>
+    <string name="delete_all_car_entries">Delete All Car Entries</string>
+    <string name="all_car_entries_deleted">All car entries deleted</string>
+    <string name="ok">OK</string>
+    <string name="exported_to_json">Exported to JSON</string>
+    <string name="imported_from_json">Imported from JSON</string>
+    <string name="failed_to_import_json">Failed to import JSON</string>
+    <string name="seder_a">Seder A</string>
+    <string name="seder_b">Seder B</string>
+</resources>

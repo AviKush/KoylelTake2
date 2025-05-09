@@ -1,0 +1,38 @@
+<resources>
+    <style name="RoundedButton" parent="Widget.MaterialComponents.Button">
+        <item name="cornerRadius">32dp</item>
+        <item name="backgroundTint">@color/button_blue</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+    <style name="CircleButton" parent="Widget.MaterialComponents.Button">
+        <item name="shapeAppearanceOverlay">@style/CircleShape</item>
+        <item name="backgroundTint">@color/button_blue_transparent</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="iconGravity">textStart</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:minWidth">56dp</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:maxWidth">56dp</item>
+        <item name="android:maxHeight">56dp</item>
+    </style>
+    <style name="CircleShape" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+    <style name="AppPopupMenu" parent="Widget.MaterialComponents.PopupMenu">
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:background">@android:color/white</item>
+        <item name="itemTextAppearance">@style/PopupMenuText</item>
+    </style>
+    <style name="PopupMenuText" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+    <style name="Toolbar.TitleText" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources> 

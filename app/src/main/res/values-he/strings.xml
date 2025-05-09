@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">KoylelTake2</string>
+    <string name="menu_export_json">ייצוא ל-JSON</string>
+    <string name="menu_import_json">ייבוא מ-JSON</string>
+    <string name="menu_clear_all">מחק הכל</string>
+    <string name="clear_all_confirmation">האם אתה בטוח שברצונך למחוק את כל הרשומות?</string>
+    <string name="yes">כן</string>
+    <string name="no">לא</string>
+    <string name="menu_add_time_manually">הוסף זמן ידנית</string>
+    <string name="menu_sum_car_entries">סכום כניסות רכב</string>
+    <string name="menu_language">שפה</string>
+    <string name="menu_language_english">אנגלית</string>
+    <string name="menu_language_hebrew">עברית</string>
+    <string name="main_color">צבע ראשי:</string>
+    <string name="background_color_1">צבע רקע 1:</string>
+    <string name="background_color_2">צבע רקע 2:</string>
+    <string name="text_color">צבע טקסט:</string>
+    <string name="choose_main_color">בחר צבע ראשי</string>
+    <string name="choose_background_color_1">בחר צבע רקע 1</string>
+    <string name="choose_background_color_2">בחר צבע רקע 2</string>
+    <string name="choose_text_color">בחר צבע טקסט</string>
+    <string name="reset">איפוס</string>
+    <string name="cancel">ביטול</string>
+    <string name="save">שמור</string>
+    <string name="colors_saved">הצבעים נשמרו!</string>
+    <string name="choose_colors">בחר צבעים</string>
+    <string name="total_car_entries">סה"כ כניסות רכב: %1$d</string>
+    <string name="delete_all_car_entries">מחק את כל כניסות הרכב</string>
+    <string name="all_car_entries_deleted">כל כניסות הרכב נמחקו</string>
+    <string name="ok">אישור</string>
+    <string name="exported_to_json">יוצא ל-JSON</string>
+    <string name="imported_from_json">יובא מ-JSON</string>
+    <string name="failed_to_import_json">הייבוא מ-JSON נכשל</string>
+    <string name="seder_a">א</string>
+    <string name="seder_b">ב</string>
+</resources> 

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_add_time_manually"
+        android:title="@string/menu_add_time_manually"
+        android:icon="@drawable/ic_calendar" />
+    <item
+        android:id="@+id/nav_export_json"
+        android:title="@string/menu_export_json"
+        android:icon="@android:drawable/ic_menu_save" />
+    <item
+        android:id="@+id/nav_import_json"
+        android:title="@string/menu_import_json"
+        android:icon="@android:drawable/ic_menu_upload" />
+    <item
+        android:id="@+id/nav_clear_all"
+        android:title="@string/menu_clear_all"
+        android:icon="@drawable/ic_delete_24" />
+    <item
+        android:id="@+id/nav_choose_colors"
+        android:title="@string/choose_colors"
+        android:icon="@android:drawable/ic_menu_manage" />
+    <item
+        android:id="@+id/menu_sum_car_entries"
+        android:title="@string/menu_sum_car_entries"
+        android:icon="@drawable/ic_car" />
+    <item
+        android:id="@+id/nav_language"
+        android:title="@string/menu_language"
+        android:icon="@drawable/ic_language">
+        <menu>
+            <item
+                android:id="@+id/nav_language_english"
+                android:title="@string/menu_language_english" />
+            <item
+                android:id="@+id/nav_language_hebrew"
+                android:title="@string/menu_language_hebrew" />
+        </menu>
+    </item>
+</menu> 

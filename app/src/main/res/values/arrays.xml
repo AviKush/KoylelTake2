@@ -1,0 +1,48 @@
+<resources>
+    <string-array name="main_colors">
+        <item>#1976D2</item> <!-- Blue -->
+        <item>#388E3C</item> <!-- Green -->
+        <item>#D32F2F</item> <!-- Red -->
+        <item>#FBC02D</item> <!-- Yellow -->
+        <item>#7B1FA2</item> <!-- Purple -->
+        <item>#F57C00</item> <!-- Orange -->
+        <item>#0288D1</item> <!-- Light Blue -->
+        <item>#388E3C</item> <!-- Dark Green -->
+        <item>#C2185B</item> <!-- Pink -->
+        <item>#455A64</item> <!-- Blue Grey -->
+        <item>#009688</item> <!-- Teal -->
+        <item>#FFA000</item> <!-- Amber -->
+        <item>#5D4037</item> <!-- Brown -->
+        <item>#607D8B</item> <!-- Grey Blue -->
+        <item>#E64A19</item> <!-- Deep Orange -->
+        <item>#303F9F</item> <!-- Indigo -->
+        <item>#C0CA33</item> <!-- Lime -->
+        <item>#F06292</item> <!-- Light Pink -->
+        <item>#0097A7</item> <!-- Cyan -->
+        <item>#AFB42B</item> <!-- Olive -->
+    </string-array>
+    <string-array name="background_colors">
+        <item>#FFFFFF</item>
+        <item>#F5F5F5</item>
+        <item>#EEEEEE</item>
+        <item>#E0E0E0</item>
+        <item>#BDBDBD</item>
+        <item>#9E9E9E</item>
+        <item>#757575</item>
+        <item>#616161</item>
+        <item>#424242</item>
+        <item>#212121</item>
+    </string-array>
+    <string-array name="text_colors">
+        <item>#222222</item>
+        <item>#333333</item>
+        <item>#444444</item>
+        <item>#555555</item>
+        <item>#666666</item>
+        <item>#888888</item>
+        <item>#000000</item>
+        <item>#FFFFFF</item>
+        <item>#2196F3</item>
+        <item>#D32F2F</item>
+    </string-array>
+</resources> 
