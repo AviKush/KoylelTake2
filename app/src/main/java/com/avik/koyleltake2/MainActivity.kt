@@ -506,14 +506,33 @@ class MainActivity : AppCompatActivity() {
             val day = cal.get(HebrewCalendar.DAY_OF_MONTH)
             val hour = cal.get(HebrewCalendar.HOUR_OF_DAY)
             val minute = cal.get(HebrewCalendar.MINUTE)
-            val months = arrayOf(
+            
+            // Hebrew month names for Hebrew locale
+            val hebrewMonths = arrayOf(
                 "תשרי", "חשוון", "כסלו", "טבת", "שבט", "אדר א'", "אדר", "ניסן", "אייר", "סיוון", "תמוז", "אב", "אלול"
             )
-            val monthName = if (month in 1..months.size) months[month - 1] else month.toString()
-            val dayHeb = intToHebrew(day)
-            val yearHeb = intToHebrew(year)
+            
+            // English transliterations of Hebrew month names
+            val englishHebrewMonths = arrayOf(
+                "Tishrei", "Cheshvan", "Kislev", "Tevet", "Shevat", "Adar I", "Adar", "Nisan", "Iyar", "Sivan", "Tammuz", "Av", "Elul"
+            )
+            
             val time = String.format("%02d:%02d", hour, minute)
-            "$dayHeb $monthName $yearHeb $time"
+            
+            // Check current locale to determine display format
+            val currentLang = loadLanguage() ?: resources.configuration.locales[0].language
+            
+            if (currentLang == "he") {
+                // Hebrew format for Hebrew locale
+                val monthName = if (month in 1..hebrewMonths.size) hebrewMonths[month - 1] else month.toString()
+                val dayHeb = intToHebrew(day)
+                val yearHeb = intToHebrew(year)
+                "$dayHeb $monthName $yearHeb $time"
+            } else {
+                // English format for all other locales
+                val monthName = if (month in 1..englishHebrewMonths.size) englishHebrewMonths[month - 1] else month.toString()
+                "$day $monthName $year $time"
+            }
         } else {
             val sdf = java.text.SimpleDateFormat("MMM dd, yyyy – HH:mm", java.util.Locale.getDefault())
             sdf.format(timestamp)

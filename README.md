@@ -1,4 +1,4 @@
-# Koylel - Yeshiva Time Tracking App
+# כּוֹלֵל (Koylel) - Yeshiva Time Tracking App
 
 ## Overview
 Koylel is a specialized time tracking application designed for Yeshiva students to log their learning sessions and location-based attendance. The app automatically detects when a user enters specific locations (like a Beit Midrash) and logs their attendance with appropriate Seder designations.
