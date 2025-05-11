@@ -61,6 +61,7 @@ import android.widget.CompoundButton
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.util.Log
+import android.app.PendingIntent
 
 class MainActivity : AppCompatActivity() {
 
@@ -73,6 +74,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var locationManager: android.location.LocationManager
     private lateinit var geofenceBroadcastReceiver: CustomGeofenceBroadcastReceiver
     private var isCarFabEnabled = true // Default state for car FAB
+    private var isLocationServiceRunning = false
+    private var appStartTime: Long = 0
+    
+    // Shared preferences for service toggle state
+    private val PREF_SERVICE_ENABLED = "pref_service_enabled" 
+    private val servicePrefs by lazy { getSharedPreferences("service_prefs", MODE_PRIVATE) }
 
     // Add ActivityResultLauncher for location permissions
     private val locationPermissionRequest = registerForActivityResult(
@@ -190,6 +197,9 @@ class MainActivity : AppCompatActivity() {
         loadLanguage()?.let { setLocale(this, it, false) }
         super.onCreate(savedInstanceState)
         
+        // Set app start time
+        appStartTime = System.currentTimeMillis()
+        
         // Add debug logs
         android.util.Log.d("LocaleDebug", "Current locale: ${resources.configuration.locales.toLanguageTags()}")
         android.util.Log.d("LocaleDebug", "App name from resources: ${getString(R.string.app_name)}")
@@ -197,15 +207,49 @@ class MainActivity : AppCompatActivity() {
         
         setContentView(R.layout.activity_main)
 
+        // Schedule service start after app is fully loaded
+        scheduleServiceStart()
+
         // Initialize geofencing and location services
         customGeofencingManager = CustomGeofencingManager(this)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+        
+        // Check and request location permissions, then start the service
+        checkLocationPermissionsAndStartService()
         
         // Initialize and register broadcast receiver
         geofenceBroadcastReceiver = CustomGeofenceBroadcastReceiver()
         registerReceiver(
             geofenceBroadcastReceiver, 
             IntentFilter(CustomGeofencingManager.ACTION_GEOFENCE_TRANSITION)
+        )
+        
+        // Register for new log entry broadcasts from location service
+        registerReceiver(
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    if (intent.action == LocationMonitoringService.ACTION_NEW_LOG_ENTRY) {
+                        val logEntry = intent.getSerializableExtra(LocationMonitoringService.EXTRA_LOG_ENTRY) as LogEntry?
+                        logEntry?.let {
+                            // Add the log entry
+                            logEntries.add(it)
+                            hebrewTimestamps.add(formatTimestamp(it.id))
+                            logEntryAdapter.notifyItemInserted(logEntries.size - 1)
+                            saveLogEntries()
+                            
+                            // Log for debugging
+                            Log.d("MainActivity", "Received log entry from location service: ${it.locationName}")
+                            
+                            Toast.makeText(
+                                this@MainActivity,
+                                getString(R.string.geofence_entered, it.locationName),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+            },
+            IntentFilter(LocationMonitoringService.ACTION_NEW_LOG_ENTRY)
         )
 
         // Load user-selected colors
@@ -302,7 +346,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_choose_colors -> {
                     showChooseColorsDialog()
                 }
-                R.id.menu_sum_car_entries -> {
+                R.id.menu_car_rides -> {
                     showCarEntriesDialog()
                 }
                 R.id.nav_language_english -> {
@@ -311,6 +355,12 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.nav_language_hebrew -> {
                     setLocale(this, "he", true)
+                    return@setNavigationItemSelectedListener true
+                }
+                R.id.nav_toggle_location_service -> {
+                    toggleLocationService()
+                    // Toggle checkbox state is handled in the toggleLocationService function
+                    // Return true to keep the drawer open
                     return@setNavigationItemSelectedListener true
                 }
             }
@@ -327,6 +377,173 @@ class MainActivity : AppCompatActivity() {
         // Apply car FAB visibility based on saved preference
         isCarFabEnabled = getSharedPreferences("app_settings", MODE_PRIVATE).getBoolean("car_fab_enabled", true)
         updateCarFabVisibility()
+
+        // Check if service is running
+        checkIfServiceIsRunning()
+    }
+
+    /**
+     * Schedule the service to start after a delay to ensure app is fully loaded
+     */
+    private fun scheduleServiceStart() {
+        Log.d("MainActivity", "Scheduling delayed service start")
+        
+        // Check if service should be enabled from preferences
+        val serviceEnabled = servicePrefs.getBoolean(PREF_SERVICE_ENABLED, true) // Default to true
+        Log.d("MainActivity", "Service enabled in preferences: $serviceEnabled")
+        
+        // Update UI state to match preference
+        isLocationServiceRunning = false // Will be updated when we check actual state
+        updateServiceToggleMenuItem()
+        
+        // Don't continue if service is disabled in preferences
+        if (!serviceEnabled) {
+            Log.d("MainActivity", "Service disabled in preferences, skipping startup")
+            return
+        }
+        
+        // Use a handler to delay service start by 3 seconds
+        Handler(Looper.getMainLooper()).postDelayed({
+            Log.d("MainActivity", "Delayed service start timer expired, checking conditions")
+            
+            try {
+                // Only start if we have permissions
+                if (hasAllLocationPermissions()) {
+                    // Double check if service is already running
+                    val isRunning = isServiceRunning(LocationMonitoringService::class.java)
+                    Log.d("MainActivity", "Service running status: $isRunning")
+                    
+                    if (!isRunning) {
+                        Log.d("MainActivity", "Starting service directly (bypassing geofence check)")
+                        startLocationMonitoringService()
+                        
+                        // Verify service started
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            val serviceStarted = isServiceRunning(LocationMonitoringService::class.java)
+                            Log.d("MainActivity", "Service start verification: $serviceStarted")
+                        }, 1000)
+                    } else {
+                        Log.d("MainActivity", "Service is already running, skipping start")
+                    }
+                } else {
+                    Log.d("MainActivity", "Missing location permissions, cannot start service")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error during delayed service start", e)
+            }
+        }, 3000) // 3 second delay
+    }
+
+    /**
+     * Check and request all necessary location permissions, then start the location service
+     */
+    private fun checkLocationPermissionsAndStartService() {
+        // Check for basic location permissions first
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            
+            // Request basic location permissions
+            requestLocationPermissions()
+            return
+        }
+        
+        // Check for background location permission next (needed for Android 10+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                // Show dialog explaining background permission
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.background_location_title))
+                    .setMessage(getString(R.string.background_location_message))
+                    .setPositiveButton(getString(R.string.continue_text)) { _, _ ->
+                        requestBackgroundLocationPermission()
+                    }
+                    .setNegativeButton(getString(R.string.cancel)) { _, _ ->
+                        Toast.makeText(this, getString(R.string.location_permission_needed), Toast.LENGTH_LONG).show()
+                    }
+                    .create()
+                    .show()
+                return
+            }
+        }
+        
+        // All permissions granted, check geofences and start service (but only if needed)
+        forceReloadGeofencesAndRestartService()
+        
+        // Don't request location automatically on startup
+        // getCurrentLocation() - removing this call
+    }
+    
+    /**
+     * Start the location monitoring service
+     */
+    private fun startLocationMonitoringService() {
+        try {
+            Log.d("MainActivity", "Starting location monitoring service")
+            
+            // Check if the service should be enabled in preferences
+            val serviceEnabled = servicePrefs.getBoolean(PREF_SERVICE_ENABLED, true)
+            if (!serviceEnabled) {
+                Log.d("MainActivity", "Service is disabled in preferences, not starting")
+                return
+            }
+            
+            // Check if service is already running
+            if (isServiceRunning(LocationMonitoringService::class.java)) {
+                Log.d("MainActivity", "Service is already running, no need to start")
+                isLocationServiceRunning = true
+                updateServiceToggleMenuItem()
+                return
+            }
+            
+            val serviceIntent = Intent(this, LocationMonitoringService::class.java)
+            
+            // Add explicit starting flag
+            serviceIntent.putExtra("MANUAL_START", true)
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Log.d("MainActivity", "Using startForegroundService for Android O+")
+                startForegroundService(serviceIntent)
+            } else {
+                Log.d("MainActivity", "Using startService for pre-O Android")
+                startService(serviceIntent)
+            }
+            
+            // Verify if service started
+            Handler(Looper.getMainLooper()).postDelayed({
+                val serviceStarted = isServiceRunning(LocationMonitoringService::class.java)
+                Log.d("MainActivity", "Service start verification: $serviceStarted")
+                
+                // Update UI state
+                isLocationServiceRunning = serviceStarted
+                updateServiceToggleMenuItem()
+                
+                // If service didn't start, show a message
+                if (!serviceStarted) {
+                    Toast.makeText(
+                        this,
+                        "Failed to start location service. Please try again.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }, 1000)
+            
+            // Save preference to match our intent
+            servicePrefs.edit().putBoolean(PREF_SERVICE_ENABLED, true).apply()
+            
+            // Update UI state immediately, will be corrected by verification handler if needed
+            isLocationServiceRunning = true
+            updateServiceToggleMenuItem()
+            
+            // Log success
+            Log.d("MainActivity", "Service start initiated successfully")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Failed to start location service", e)
+            Toast.makeText(
+                this, 
+                "Failed to start location service: ${e.message}", 
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     private fun logCurrentTime() {
@@ -345,6 +562,9 @@ class MainActivity : AppCompatActivity() {
             Handler(Looper.getMainLooper()).postDelayed({
                 recyclerView.smoothScrollToPosition(logEntries.size)
             }, 200)
+            
+            // Notify location service of the new manual entry
+            notifyLocationServiceOfManualEntry()
         }
     }
 
@@ -364,6 +584,9 @@ class MainActivity : AppCompatActivity() {
                 Handler(Looper.getMainLooper()).postDelayed({
                     recyclerView.smoothScrollToPosition(logEntries.size)
                 }, 200)
+                
+                // Notify location service of the new manual entry
+                notifyLocationServiceOfManualEntry()
             }
         }
         dialog.show(supportFragmentManager, "DateTimePickerDialog")
@@ -870,7 +1093,7 @@ class MainActivity : AppCompatActivity() {
         
         // Add message about sum
         val messageTextView = TextView(this).apply {
-            text = getString(R.string.total_car_entries, sum)
+            text = getString(R.string.total_car_rides, sum)
             textSize = 16f
             setPadding(0, 0, 0, 24)
         }
@@ -923,7 +1146,7 @@ class MainActivity : AppCompatActivity() {
 
         // Create the dialog
         val dialog = AlertDialog.Builder(this)
-            .setTitle(getString(R.string.menu_sum_car_entries))
+            .setTitle(getString(R.string.menu_car_rides))
             .setView(dialogLayout)
             .setPositiveButton(getString(R.string.delete_all_car_entries)) { _, _ ->
                 logEntries.removeAll { it.type == LogEntryType.CAR }
@@ -1149,6 +1372,21 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun requestLocationPermissions() {
+        // For Android 13+, also request notification permission (required for foreground services)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val notificationPermission = android.Manifest.permission.POST_NOTIFICATIONS
+            if (checkSelfPermission(notificationPermission) != PackageManager.PERMISSION_GRANTED) {
+                Log.d("MainActivity", "Requesting notification permission for Android 13+")
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(notificationPermission),
+                    1003 // Notification permission request code
+                )
+            }
+        }
+        
+        // Request location permissions
+        Log.d("MainActivity", "Requesting basic location permissions")
         locationPermissionRequest.launch(
             arrayOf(
                 android.Manifest.permission.ACCESS_FINE_LOCATION,
@@ -1365,12 +1603,192 @@ class MainActivity : AppCompatActivity() {
         
         if (requestCode == BACKGROUND_LOCATION_PERMISSION_REQUEST_CODE) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Background location permission granted
+                // Background location permission granted, start service
+                startLocationMonitoringService()
                 showManageGeofencesDialog()
             } else {
                 Toast.makeText(this, getString(R.string.location_permission_needed), Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("MainActivity", "onResume called")
+        
+        // Check if app has been running for more than the startup delay
+        val elapsedSinceStart = System.currentTimeMillis() - appStartTime
+        Log.d("MainActivity", "App running for ${elapsedSinceStart}ms")
+        
+        // Get service preference
+        val serviceEnabled = servicePrefs.getBoolean(PREF_SERVICE_ENABLED, true)
+        Log.d("MainActivity", "Service preference is enabled: $serviceEnabled")
+        
+        // Only check service status if app has been running for a while
+        if (elapsedSinceStart > 5000) { // > 5 seconds
+            Log.d("MainActivity", "App running long enough, checking service status")
+            
+            // Check if service is running
+            val serviceIsRunning = isServiceRunning(LocationMonitoringService::class.java)
+            Log.d("MainActivity", "Service running: $serviceIsRunning")
+            
+            // Update UI to match actual service state
+            isLocationServiceRunning = serviceIsRunning
+            updateServiceToggleMenuItem()
+            
+            // If service should be running but isn't, and preferences allow it, restart it
+            if (serviceEnabled && hasAllLocationPermissions() && !serviceIsRunning) {
+                Log.d("MainActivity", "Service should be running but isn't, restarting")
+                
+                // Start service directly without geofence checks
+                startLocationMonitoringService()
+            }
+        } else {
+            Log.d("MainActivity", "App just started, relying on scheduled service start")
+        }
+    }
+    
+    /**
+     * Force reload geofences and restart service if needed
+     */
+    private fun forceReloadGeofencesAndRestartService() {
+        // Only proceed if we have location permissions
+        if (!hasAllLocationPermissions()) {
+            Log.d("MainActivity", "Cannot reload geofences, missing permissions")
+            return
+        }
+        
+        try {
+            // Check if service should be enabled
+            val serviceEnabled = servicePrefs.getBoolean(PREF_SERVICE_ENABLED, true)
+            if (!serviceEnabled) {
+                Log.d("MainActivity", "Service is disabled in preferences, skipping start")
+                return
+            }
+            
+            // First check if service is already running to avoid redundant starts
+            if (isServiceRunning(LocationMonitoringService::class.java)) {
+                Log.d("MainActivity", "Service is already running, no need to restart")
+                return
+            }
+            
+            // Start service directly first
+            Log.d("MainActivity", "Starting service directly first")
+            val serviceIntent = Intent(this, LocationMonitoringService::class.java)
+            serviceIntent.putExtra("MANUAL_START", true)
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            
+            // Verify if service started
+            Handler(Looper.getMainLooper()).postDelayed({
+                val serviceStarted = isServiceRunning(LocationMonitoringService::class.java)
+                
+                if (!serviceStarted) {
+                    // Service didn't start directly, now try with geofence check
+                    Log.d("MainActivity", "Direct start failed, trying with geofence check")
+                    
+                    // Reload geofences (but don't recreate the manager to avoid duplicate initialization)
+                    val geofences = customGeofencingManager.getGeofences()
+                    Log.d("MainActivity", "Loaded ${geofences.size} geofences")
+                    
+                    // Only try to start the service if we have geofences
+                    if (geofences.isNotEmpty()) {
+                        Log.d("MainActivity", "Starting service with geofences")
+                        startLocationMonitoringService()
+                        Toast.makeText(this, getString(R.string.location_service_started), Toast.LENGTH_SHORT).show()
+                    } else {
+                        Log.d("MainActivity", "No geofences configured, creating a default one")
+                        
+                        // Create a default geofence if none exist
+                        try {
+                            Toast.makeText(this, "No geofences configured. Please add a geofence.", Toast.LENGTH_LONG).show()
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Error showing toast", e)
+                        }
+                    }
+                } else {
+                    Log.d("MainActivity", "Service started successfully via direct method")
+                }
+                
+                // Update UI state
+                isLocationServiceRunning = isServiceRunning(LocationMonitoringService::class.java)
+                updateServiceToggleMenuItem()
+            }, 1000)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error reloading geofences", e)
+        }
+    }
+    
+    /**
+     * Check if a service is running using multiple methods for reliability
+     */
+    private fun isServiceRunning(serviceClass: Class<*>): Boolean {
+        try {
+            // Method 1: Use ActivityManager (most reliable but deprecated)
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val runningServices = activityManager.getRunningServices(Integer.MAX_VALUE)
+            
+            for (service in runningServices) {
+                if (serviceClass.name == service.service.className) {
+                    Log.d("MainActivity", "Service found running via ActivityManager")
+                    return true
+                }
+            }
+            
+            // Method 2: Check for PendingIntent
+            val serviceIntent = Intent(this, serviceClass)
+            val pendingIntent = PendingIntent.getService(
+                this, 0, serviceIntent,
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            val isPendingIntentActive = pendingIntent != null
+            if (isPendingIntentActive) {
+                Log.d("MainActivity", "Service found active via PendingIntent")
+                return true
+            }
+            
+            // Method 3: For LocationMonitoringService specifically, check static flag
+            if (serviceClass.name == "com.avik.koyleltake2.LocationMonitoringService") {
+                // Try to access the isServiceRunning static property via LocationMonitoringService.Companion
+                val isRunning = LocationMonitoringService.isServiceRunning
+                if (isRunning) {
+                    Log.d("MainActivity", "Service found running via static flag")
+                    return true
+                }
+            }
+            
+            Log.d("MainActivity", "Service not running (checked all methods)")
+            return false
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error checking if service is running", e)
+            // Default to false if we can't determine
+            return false
+        }
+    }
+
+    /**
+     * Check if all location permissions are granted
+     */
+    private fun hasAllLocationPermissions(): Boolean {
+        val hasFineLocation = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == 
+            PackageManager.PERMISSION_GRANTED
+        val hasCoarseLocation = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == 
+            PackageManager.PERMISSION_GRANTED
+            
+        // For Android 10+, check background location
+        val hasBackgroundLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == 
+                PackageManager.PERMISSION_GRANTED
+        } else {
+            true // Not needed below Android 10
+        }
+        
+        return hasFineLocation && hasCoarseLocation && hasBackgroundLocation
     }
 
     override fun onDestroy() {
@@ -1433,5 +1851,162 @@ class MainActivity : AppCompatActivity() {
             return true
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    // Update this method to toggle location service with string resources
+    private fun toggleLocationService() {
+        // First determine the new state (opposite of current state)
+        val newState = !isLocationServiceRunning
+        Log.d("MainActivity", "Toggling service to: $newState")
+        
+        if (newState) {
+            // We want to start the service
+            Log.d("MainActivity", "Attempting to start service immediately")
+            
+            // Start the service directly with MANUAL_START flag
+            val serviceIntent = Intent(this, LocationMonitoringService::class.java)
+            serviceIntent.putExtra("MANUAL_START", true)
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Log.d("MainActivity", "Starting with startForegroundService")
+                startForegroundService(serviceIntent)
+            } else {
+                Log.d("MainActivity", "Starting with startService")
+                startService(serviceIntent)
+            }
+            
+            // Verify service started
+            Handler(Looper.getMainLooper()).postDelayed({
+                val serviceStarted = isServiceRunning(LocationMonitoringService::class.java)
+                Log.d("MainActivity", "Service started verification: $serviceStarted")
+                isLocationServiceRunning = serviceStarted
+                updateServiceToggleMenuItem()
+            }, 1000)
+            
+            Toast.makeText(this, getString(R.string.location_service_started), Toast.LENGTH_SHORT).show()
+        } else {
+            // Stop the service
+            Log.d("MainActivity", "Stopping service")
+            val serviceIntent = Intent(this, LocationMonitoringService::class.java)
+            stopService(serviceIntent)
+            
+            // Verify service stopped
+            Handler(Looper.getMainLooper()).postDelayed({
+                val serviceStopped = !isServiceRunning(LocationMonitoringService::class.java)
+                Log.d("MainActivity", "Service stopped verification: $serviceStopped")
+                isLocationServiceRunning = !serviceStopped
+                updateServiceToggleMenuItem()
+            }, 1000)
+            
+            Toast.makeText(this, getString(R.string.location_service_stopped), Toast.LENGTH_SHORT).show()
+        }
+        
+        // Save the new state to preferences
+        servicePrefs.edit().putBoolean(PREF_SERVICE_ENABLED, newState).apply()
+        Log.d("MainActivity", "Saved service preference: $newState")
+        
+        // Update UI state immediately, will be corrected by verification handler if needed
+        isLocationServiceRunning = newState
+        updateServiceToggleMenuItem()
+    }
+
+    // Update menu item based on service state
+    private fun updateServiceToggleMenuItem() {
+        try {
+            val navigationView: NavigationView = findViewById(R.id.navigation_view)
+            val menuItem = navigationView.menu.findItem(R.id.nav_toggle_location_service)
+            if (menuItem != null) {
+                // Get the actual service running state
+                val isRunning = isLocationServiceRunning
+                
+                // Get preference state
+                val isEnabledInPrefs = servicePrefs.getBoolean(PREF_SERVICE_ENABLED, true)
+                
+                // Update UI to reflect current running state, not preference
+                menuItem.title = if (isRunning) 
+                    getString(R.string.stop_location_service)
+                else 
+                    getString(R.string.start_location_service)
+                
+                // Set the checked state to match the service running state
+                menuItem.isChecked = isRunning
+                
+                // Log for debugging
+                Log.d("MainActivity", "Updated menu: running=$isRunning, enabled in prefs=$isEnabledInPrefs")
+                
+                // IMPORTANT: Don't auto-sync preferences with running state
+                // This could be causing the service to shut down when reopening
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error updating service menu item", e)
+        }
+    }
+
+    // Add this method to check if service is running
+    private fun checkIfServiceIsRunning() {
+        try {
+            Log.d("MainActivity", "Checking if location service is running")
+            
+            // Check service preference
+            val serviceEnabled = servicePrefs.getBoolean(PREF_SERVICE_ENABLED, true)
+            
+            // Use our comprehensive method to check service status
+            val isRunning = isServiceRunning(LocationMonitoringService::class.java)
+            
+            Log.d("MainActivity", "Service running check result: $isRunning, preference enabled: $serviceEnabled")
+            
+            // Update the internal state to match reality
+            isLocationServiceRunning = isRunning
+            
+            // Update UI to reflect service status
+            updateServiceToggleMenuItem()
+            
+            // If service should be on but isn't, try to start it
+            if (serviceEnabled && !isRunning && hasAllLocationPermissions()) {
+                // Service should be on but isn't - we'll let the scheduled start handle it
+                Log.d("MainActivity", "Service should be on but isn't - scheduled start will handle it")
+            }
+            
+            // IMPORTANT: Do not automatically stop the service if it's running but preference is disabled
+            // This was causing issues when reopening the app
+            // The commented out code below was stopping the service:
+            /*
+            else if (!serviceEnabled && isRunning) {
+                // Service should be off but is on - stop it
+                Log.d("MainActivity", "Service should be off but is on - stopping it")
+                val serviceIntent = Intent(this, LocationMonitoringService::class.java)
+                stopService(serviceIntent)
+                isLocationServiceRunning = false
+                updateServiceToggleMenuItem()
+            }
+            */
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error checking service status", e)
+            // Default to not running if we can't determine
+            isLocationServiceRunning = false
+            updateServiceToggleMenuItem()
+        }
+    }
+
+    /**
+     * Notify the location service that a manual entry has been added
+     */
+    private fun notifyLocationServiceOfManualEntry() {
+        Log.d("MainActivity", "Notifying location service of manual entry")
+        
+        // Check if the service is running
+        if (!isServiceRunning(LocationMonitoringService::class.java)) {
+            Log.d("MainActivity", "Location service not running, starting it")
+            // Start the service with the check flag
+            val serviceIntent = Intent(this, LocationMonitoringService::class.java)
+            serviceIntent.putExtra("CHECK_MANUAL_ENTRIES", true)
+            startService(serviceIntent)
+        } else {
+            Log.d("MainActivity", "Location service running, sending check request")
+            // Send intent to the running service
+            val checkIntent = Intent(this, LocationMonitoringService::class.java)
+            checkIntent.putExtra("CHECK_MANUAL_ENTRIES", true)
+            startService(checkIntent)
+        }
     }
 }

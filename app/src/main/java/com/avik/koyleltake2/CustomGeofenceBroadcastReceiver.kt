@@ -17,6 +17,8 @@ class CustomGeofenceBroadcastReceiver : BroadcastReceiver() {
     }
     
     override fun onReceive(context: Context, intent: Intent) {
+        Log.d(TAG, "Received broadcast with action: ${intent.action}")
+        
         if (intent.action == CustomGeofencingManager.ACTION_GEOFENCE_TRANSITION) {
             val geofenceId = intent.getStringExtra(CustomGeofencingManager.EXTRA_GEOFENCE_ID) ?: return
             val geofenceName = intent.getStringExtra(CustomGeofencingManager.EXTRA_GEOFENCE_NAME) ?: return
@@ -29,6 +31,7 @@ class CustomGeofenceBroadcastReceiver : BroadcastReceiver() {
             when (transitionType) {
                 CustomGeofencingManager.GEOFENCE_TRANSITION_ENTER -> {
                     // User entered geofence - log timestamp
+                    Log.d(TAG, "ENTER: About to log geofence entry for: $geofenceName")
                     logGeofenceEntry(context, geofenceName)
                 }
                 CustomGeofencingManager.GEOFENCE_TRANSITION_EXIT -> {
@@ -36,6 +39,8 @@ class CustomGeofenceBroadcastReceiver : BroadcastReceiver() {
                     Log.d(TAG, "Exited geofence: $geofenceName")
                 }
             }
+        } else {
+            Log.d(TAG, "Received unhandled broadcast: ${intent.action}")
         }
     }
     
@@ -44,12 +49,15 @@ class CustomGeofenceBroadcastReceiver : BroadcastReceiver() {
      */
     private fun logGeofenceEntry(context: Context, locationName: String) {
         try {
+            Log.d(TAG, "Starting to log geofence entry for: $locationName")
+            
             // Get the app instance to use its formatTimestamp method
             val app = context.applicationContext as MyApplication
             
             // Create timestamp
             val currentTime = System.currentTimeMillis()
             val formattedTime = app.formatTimestamp(currentTime)
+            Log.d(TAG, "Formatted timestamp: $formattedTime")
             
             // Determine seder based on hour
             val calendar = Calendar.getInstance()
@@ -60,6 +68,7 @@ class CustomGeofenceBroadcastReceiver : BroadcastReceiver() {
                 in 15..18 -> "'סדר ב"
                 else -> ""
             }
+            Log.d(TAG, "Current hour: $hour, Seder: $seder")
             
             // Format the location name with seder if applicable
             val formattedLocationName = if (seder.isNotEmpty()) {
@@ -67,6 +76,7 @@ class CustomGeofenceBroadcastReceiver : BroadcastReceiver() {
             } else {
                 locationName
             }
+            Log.d(TAG, "Formatted location name: $formattedLocationName")
             
             // Create log entry
             val logEntry = LogEntry(
@@ -78,6 +88,7 @@ class CustomGeofenceBroadcastReceiver : BroadcastReceiver() {
             
             // Save the log entry
             saveLogEntry(context, logEntry)
+            Log.d(TAG, "Saved log entry to SharedPreferences")
             
             // Show a toast notification
             Toast.makeText(context, 

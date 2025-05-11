@@ -1,66 +1,86 @@
 <resources>
-    <string name="app_name">KoylelTake2</string>
+    <string name="app_name">Koylel</string>
+    <string name="action_settings">Settings</string>
+    <string name="menu_language">שפה / Language</string>
+    <string name="menu_choose_colors">Choose Colors</string>
     <string name="menu_export_json">Export to JSON</string>
-    <string name="menu_import_json">Import JSON</string>
+    <string name="menu_import_json">Import from JSON</string>
     <string name="menu_clear_all">Clear All</string>
-    <string name="clear_all_confirmation">Are you sure you want to clear all log entries?</string>
-    <string name="yes">Yes</string>
-    <string name="no">No</string>
-    <string name="menu_add_time_manually">Add Time Manually</string>
-    <string name="menu_sum_car_entries">Sum Car Entries</string>
-    <string name="menu_language">Language</string>
-    <string name="menu_language_english">English</string>
-    <string name="menu_language_hebrew">Hebrew</string>
-    <string name="main_color">Main color:</string>
-    <string name="background_color_1">Background color 1:</string>
-    <string name="background_color_2">Background color 2:</string>
-    <string name="text_color">Text color:</string>
-    <string name="choose_main_color">Choose main color</string>
-    <string name="choose_background_color_1">Choose background color 1</string>
-    <string name="choose_background_color_2">Choose background color 2</string>
+    <string name="main_color">Main Color</string>
+    <string name="background_color_1">Background Color 1</string>
+    <string name="background_color_2">Background Color 2</string>
+    <string name="text_color">Text Color</string>
+    <string name="choose_main_color">Choose Main Color</string>
+    <string name="choose_background_color_1">Choose Background Color 1</string>
+    <string name="choose_background_color_2">Choose Background Color 2</string>
     <string name="choose_text_color">Choose Text Color</string>
-    <string name="reset">Reset</string>
-    <string name="cancel">Cancel</string>
-    <string name="save">Save</string>
-    <string name="colors_saved">Colors saved</string>
     <string name="choose_colors">Choose Colors</string>
-    <string name="total_car_entries">Total car entries: %1$d</string>
-    <string name="delete_all_car_entries">Delete All Car Entries</string>
-    <string name="all_car_entries_deleted">All car entries deleted</string>
-    <string name="ok">OK</string>
-    <string name="exported_to_json">Exported to JSON</string>
+    <string name="export_button_description">Export Button</string>
     <string name="imported_from_json">Imported from JSON</string>
     <string name="failed_to_import_json">Failed to import JSON</string>
-    <string name="seder_a">Seder A</string>
-    <string name="seder_b">Seder B</string>
-    
-    <!-- Geofence related strings -->
+    <string name="exported_to_json">Exported to JSON</string>
+    <string name="colors_saved">Colors saved</string>
+    <string name="reset">Reset</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="save">Save</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="clear_all_confirmation">Are you sure you want to clear all entries?</string>
+    <string name="continue_text">Continue</string>
+    <string name="geofence_entered">Entered location: %1$s</string>
+    <string name="show_car_button">Show Car Button</string>
+    <string name="menu_car_rides">Car Rides</string>
+    <string name="total_car_rides">Total car rides: %1$d</string>
+    <string name="delete_all_car_entries">Delete All Car Entries</string>
+    <string name="all_car_entries_deleted">All car entries deleted</string>
     <string name="menu_manage_geofences">Manage Locations</string>
     <string name="add_geofence">Add Location</string>
     <string name="geofence_name">Location Name</string>
     <string name="geofence_radius">Radius (meters)</string>
-    <string name="geofence_saved">Location saved</string>
-    <string name="geofence_deleted">Location deleted</string>
-    <string name="geofence_error">Error managing location</string>
-    <string name="location_permission_needed">Location permission is needed for geofencing</string>
     <string name="current_location">Use Current Location</string>
     <string name="enter_coordinates">Enter Coordinates</string>
     <string name="latitude">Latitude</string>
     <string name="longitude">Longitude</string>
-    
-    <!-- Custom geofence notification strings -->
+    <string name="delete">Delete</string>
+    <string name="geofence_deleted">Location deleted</string>
+    <string name="geofence_saved">Location saved</string>
+    <string name="geofence_error">Location error</string>
+    <string name="location_permission_needed">Location permission is needed for this feature</string>
+    <string name="background_location_title">Background Location</string>
+    <string name="background_location_message">This app needs background location permission to detect when you enter defined locations even when the app is not in use.</string>
     <string name="location_monitoring_title">Location Monitoring Active</string>
-    <string name="location_monitoring_text">Monitoring your location for geofence transitions</string>
-    <string name="geofence_entered">Entered location: %1$s</string>
-    <string name="no_geofences">No locations added yet</string>
-    <string name="delete_geofence">Delete location</string>
-    
-    <!-- Location debug strings -->
+    <string name="location_monitoring_text">Monitoring for location updates</string>
+    <string name="start_location_service">Start Location Service</string>
+    <string name="stop_location_service">Stop Location Service</string>
+    <string name="location_service_started">Location service started</string>
+    <string name="location_service_stopped">Location service stopped</string>
     <string name="menu_location_debug">Location Debug</string>
-    <string name="location_debug_title">Location Debug Information</string>
+    <string name="no_geofences">No locations defined yet</string>
+    <string name="add_new_geofence">Add New Location</string>
+    
+    <!-- New notification strings -->
+    <string name="location_monitoring_inactive">Location Monitoring Inactive</string>
+    <string name="location_monitoring_inactive_desc">Will resume %1$s</string>
+    <string name="location_monitoring_acquiring">Acquiring Location…</string>
+    <string name="location_monitoring_acquiring_desc">Please ensure device has clear GPS signal</string>
+    <string name="location_monitoring_active_desc">Last update: %1$d minutes ago</string>
+    <string name="location_monitoring_recorded">Entry Recorded</string>
+    <string name="location_monitoring_recorded_time">%1$d minutes ago</string>
+    <string name="location_monitoring_recorded_desc">Entry recorded %1$s. Next check %2$s</string>
+    <string name="today_morning">today morning (9:00)</string>
+    <string name="today_afternoon">today afternoon (15:00)</string>
+    <string name="tomorrow_morning">tomorrow morning (9:00)</string>
+    
+    <!-- Missing strings needed by layouts -->
+    <string name="menu_add_time_manually">Add Time Manually</string>
+    <string name="menu_language_english">English</string>
+    <string name="menu_language_hebrew">Hebrew</string>
+    <string name="menu_location_group">Location</string>
+    <string name="menu_data_group">Data</string>
+    <string name="toggle_location_service">Toggle Location Service</string>
+    <string name="delete_geofence">Delete Location</string>
+    <string name="location_debug_title">Location Debug</string>
     <string name="clear_log">Clear Log</string>
-    <string name="logged_locations">Logged locations: %1$d</string>
-    <string name="no_location_data">No location data available</string>
-    <string name="car_entry_description">Entered %s</string>
-    <string name="show_car_button">Show car button</string>
+    <string name="logged_locations">Logged Locations</string>
 </resources>

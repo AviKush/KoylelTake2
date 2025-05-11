@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    
+    <!-- Book base -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M5,6L5,18L12,16L19,18L19,6L12,4L5,6z" />
+    
+    <!-- Book spine -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,4L12,16" />
+    
+    <!-- Location marker on book -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,8C10.9,8 10,8.9 10,10C10,11.5 12,13.5 12,13.5C12,13.5 14,11.5 14,10C14,8.9 13.1,8 12,8zM12,10.8C11.5,10.8 11.2,10.4 11.2,10C11.2,9.6 11.6,9.2 12,9.2C12.4,9.2 12.8,9.6 12.8,10C12.8,10.4 12.5,10.8 12,10.8z" />
+</vector> 

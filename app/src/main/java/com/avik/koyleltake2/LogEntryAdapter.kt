@@ -74,36 +74,56 @@ class LogEntryAdapter(
             tvSeder.setTextColor(textColor)
             tvLocationName?.setTextColor(textColor)
 
-            // Determine seder based on hour and entry type
-            val seder = if (logEntry.type == LogEntryType.CAR || logEntry.type == LogEntryType.GEOFENCE) {
-                "" // Don't show seder for car or geofence entries
-            } else {
-                when (hour) {
-                    in 9..12 -> "סדר א'"
-                    in 15..18 -> "סדר ב'"
-                    else -> ""
-                }
+            // Determine seder based on hour
+            val seder = when (hour) {
+                in 9..12 -> "סדר א'"
+                in 15..18 -> "סדר ב'"
+                else -> ""
             }
-            tvSeder.text = seder
-
+            
             // Handle car icon
             if (logEntry.type == LogEntryType.CAR) {
                 ivCar?.visibility = View.VISIBLE
                 ivLocation?.visibility = View.GONE
                 tvLocationName?.visibility = View.GONE
+                tvSeder.text = ""
             } 
             // Handle location icon
             else if (logEntry.type == LogEntryType.GEOFENCE) {
                 ivCar?.visibility = View.GONE
                 ivLocation?.visibility = View.VISIBLE
-                tvLocationName?.visibility = View.VISIBLE
-                tvLocationName?.text = logEntry.locationName ?: ""
+                tvLocationName?.visibility = View.GONE
+                
+                // Extract location name and seder from locationName field
+                var displayLocationName = logEntry.locationName ?: ""
+                val sederA = "'סדר א"
+                val sederB = "'סדר ב"
+                val displaySeder: String
+                
+                // Process the location name to extract seder information
+                if (displayLocationName.endsWith(sederA)) {
+                    displayLocationName = displayLocationName.removeSuffix(sederA).trim()
+                    displaySeder = "סדר א'"
+                } else if (displayLocationName.endsWith(sederB)) {
+                    displayLocationName = displayLocationName.removeSuffix(sederB).trim()
+                    displaySeder = "סדר ב'"
+                } else {
+                    displaySeder = seder
+                }
+                
+                // Display both location name and seder in the center tvSeder field
+                if (displaySeder.isNotEmpty()) {
+                    tvSeder.text = "$displayLocationName, $displaySeder"
+                } else {
+                    tvSeder.text = displayLocationName
+                }
             }
             // Handle normal entries
             else {
                 ivCar?.visibility = View.GONE
                 ivLocation?.visibility = View.GONE
                 tvLocationName?.visibility = View.GONE
+                tvSeder.text = seder
             }
 
             btnDelete.setOnClickListener { onDeleteClick(logEntry) }

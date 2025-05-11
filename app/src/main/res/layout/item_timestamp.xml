@@ -91,7 +91,7 @@
             android:layout_height="24dp"
             android:layout_gravity="center_vertical|end"
             android:background="@android:color/transparent"
-            android:src="@drawable/ic_stand"
+            android:src="@drawable/ic_location_24"
             android:contentDescription="Location Entry"
             android:scaleType="centerInside"
             android:tint="#4CAF50"

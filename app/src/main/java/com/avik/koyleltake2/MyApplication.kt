@@ -2,13 +2,23 @@ package com.avik.koyleltake2
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.LocaleList
+import android.util.Log
+import androidx.core.content.ContextCompat
 import java.util.Locale
 import android.icu.util.HebrewCalendar
+import android.os.Handler
+import android.os.Looper
 
 class MyApplication : Application() {
+    companion object {
+        private const val TAG = "MyApplication"
+    }
+    
     override fun attachBaseContext(base: Context) {
         // Get saved language
         val language = base.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -39,6 +49,9 @@ class MyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        Log.d(TAG, "MyApplication onCreate called")
+        
         // Get saved language
         val language = getSharedPreferences("settings", Context.MODE_PRIVATE)
             .getString(MainActivity.PREF_LANGUAGE, null)
@@ -49,6 +62,140 @@ class MyApplication : Application() {
             val config = resources.configuration
             updateConfigurationLocale(config, locale)
             resources.updateConfiguration(config, resources.displayMetrics)
+        }
+        
+        // We'll let the MainActivity handle service start after a delay
+        // but register a watchdog timer to check if service is running after some time
+        // This ensures service eventually starts even if MainActivity fails to start it
+        
+        if (hasAllLocationPermissions()) {
+            Log.d(TAG, "Location permissions already granted, scheduling service check")
+            
+            // Register delayed check to ensure service eventually starts
+            // This is a backup in case MainActivity fail to start the service
+            Handler(Looper.getMainLooper()).postDelayed({
+                checkAndEnsureServiceRunning()
+            }, 10000) // Check 10 seconds after app start
+        } else {
+            Log.d(TAG, "Location permissions not granted, skipping service check scheduling")
+        }
+    }
+    
+    /**
+     * Check if service is running and start it if needed
+     */
+    private fun checkAndEnsureServiceRunning() {
+        Log.d(TAG, "Watchdog timer: checking if location service is running")
+        
+        try {
+            // Check service preference
+            val serviceEnabled = getSharedPreferences("service_prefs", Context.MODE_PRIVATE)
+                .getBoolean("pref_service_enabled", true)
+            
+            Log.d(TAG, "Service enabled in preferences: $serviceEnabled")
+            
+            // Check if service is already running
+            val isRunning = isServiceRunning(LocationMonitoringService::class.java)
+            Log.d(TAG, "Service running status: $isRunning")
+            
+            // Only start the service if:
+            // 1. It's enabled in preferences
+            // 2. It's not already running
+            // 3. We have all permissions
+            if (serviceEnabled && !isRunning && hasAllLocationPermissions()) {
+                Log.d(TAG, "Watchdog: service not running but should be, attempting to start it")
+                startLocationService()
+            } else if (isRunning) {
+                Log.d(TAG, "Watchdog: service is already running, no action needed")
+            } else if (!serviceEnabled) {
+                Log.d(TAG, "Watchdog: service is disabled in preferences, no action needed")
+            } else {
+                Log.d(TAG, "Watchdog: permissions missing, can't start service")
+            }
+            
+            // IMPORTANT: Never automatically stop a running service
+            // Let the user explicitly stop it through the UI
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in service watchdog check", e)
+        }
+    }
+    
+    /**
+     * Check if a service is running
+     */
+    private fun isServiceRunning(serviceClass: Class<*>): Boolean {
+        try {
+            // Method 1: Check using ActivityManager
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val runningServices = activityManager.getRunningServices(Integer.MAX_VALUE)
+            
+            for (service in runningServices) {
+                if (serviceClass.name == service.service.className) {
+                    Log.d(TAG, "Service found running via ActivityManager")
+                    return true
+                }
+            }
+            
+            // Method 2: For LocationMonitoringService specifically, check its static flag
+            if (serviceClass.name == "com.avik.koyleltake2.LocationMonitoringService") {
+                val isRunning = LocationMonitoringService.isServiceRunning
+                if (isRunning) {
+                    Log.d(TAG, "Service found running via static flag")
+                    return true
+                }
+            }
+            
+            Log.d(TAG, "Service not running")
+            return false
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking if service is running", e)
+            return false
+        }
+    }
+    
+    /**
+     * Check if all necessary location permissions are granted
+     */
+    private fun hasAllLocationPermissions(): Boolean {
+        // Check for basic location permissions
+        val hasFineLocation = ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        
+        val hasCoarseLocation = ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        
+        // For Android 10+, check for background location permissions
+        val hasBackgroundLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContextCompat.checkSelfPermission(
+                this, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true // Background location not needed for Android 9 and below
+        }
+        
+        return hasFineLocation && hasCoarseLocation && hasBackgroundLocation
+    }
+    
+    /**
+     * Start the location monitoring service
+     */
+    private fun startLocationService() {
+        try {
+            Log.d(TAG, "Starting location monitoring service from Application")
+            val serviceIntent = Intent(this, LocationMonitoringService::class.java)
+            
+            // Add manual start flag
+            serviceIntent.putExtra("MANUAL_START", true)
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting location service", e)
         }
     }
     

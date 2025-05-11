@@ -1,37 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 1. Add time manually -->
     <item
         android:id="@+id/nav_add_time_manually"
         android:title="@string/menu_add_time_manually"
         android:icon="@drawable/ic_calendar" />
+    
+    <!-- 2. Car rides -->
     <item
-        android:id="@+id/nav_manage_geofences"
-        android:title="@string/menu_manage_geofences"
-        android:icon="@drawable/ic_location_24" />
-    <item
-        android:id="@+id/nav_location_debug"
-        android:title="@string/menu_location_debug"
-        android:icon="@android:drawable/ic_menu_myplaces" />
-    <item
-        android:id="@+id/nav_export_json"
-        android:title="@string/menu_export_json"
-        android:icon="@android:drawable/ic_menu_save" />
-    <item
-        android:id="@+id/nav_import_json"
-        android:title="@string/menu_import_json"
-        android:icon="@android:drawable/ic_menu_upload" />
-    <item
-        android:id="@+id/nav_clear_all"
-        android:title="@string/menu_clear_all"
-        android:icon="@drawable/ic_delete_24" />
+        android:id="@+id/menu_car_rides"
+        android:title="@string/menu_car_rides"
+        android:icon="@drawable/ic_car" />
+    
+    <!-- 3. Colors (moved up) -->
     <item
         android:id="@+id/nav_choose_colors"
         android:title="@string/choose_colors"
         android:icon="@android:drawable/ic_menu_manage" />
+    
+    <!-- 4. Location group -->
     <item
-        android:id="@+id/menu_sum_car_entries"
-        android:title="@string/menu_sum_car_entries"
-        android:icon="@drawable/ic_car" />
+        android:title="@string/menu_location_group">
+        <menu>
+            <item
+                android:id="@+id/nav_manage_geofences"
+                android:title="@string/menu_manage_geofences"
+                android:icon="@drawable/ic_location_24" />
+            <item
+                android:id="@+id/nav_location_debug"
+                android:title="@string/menu_location_debug"
+                android:icon="@android:drawable/ic_menu_myplaces" />
+            <item
+                android:id="@+id/nav_toggle_location_service"
+                android:title="@string/toggle_location_service"
+                android:icon="@android:drawable/ic_menu_mylocation"
+                android:checkable="true" />
+        </menu>
+    </item>
+    
+    <!-- 5. Data group (import, export, delete) -->
+    <item
+        android:title="@string/menu_data_group">
+        <menu>
+            <item
+                android:id="@+id/nav_export_json"
+                android:title="@string/menu_export_json"
+                android:icon="@android:drawable/ic_menu_save" />
+            <item
+                android:id="@+id/nav_import_json"
+                android:title="@string/menu_import_json" 
+                android:icon="@android:drawable/ic_menu_upload" />
+            <item
+                android:id="@+id/nav_clear_all"
+                android:title="@string/menu_clear_all"
+                android:icon="@drawable/ic_delete_24" />
+        </menu>
+    </item>
+    
+    <!-- 6. Language -->
     <item
         android:id="@+id/nav_language"
         android:title="@string/menu_language"

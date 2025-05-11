@@ -7,7 +7,6 @@
     <string name="yes">כן</string>
     <string name="no">לא</string>
     <string name="menu_add_time_manually">הוסף זמן ידנית</string>
-    <string name="menu_sum_car_entries">סכום כניסות רכב</string>
     <string name="menu_language">שפה</string>
     <string name="menu_language_english">אנגלית</string>
     <string name="menu_language_hebrew">עברית</string>
@@ -24,9 +23,6 @@
     <string name="save">שמור</string>
     <string name="colors_saved">צבעים נשמרו</string>
     <string name="choose_colors">בחר צבעים</string>
-    <string name="total_car_entries">סה"כ כניסות רכב: %1$d</string>
-    <string name="delete_all_car_entries">מחק את כל כניסות הרכב</string>
-    <string name="all_car_entries_deleted">כל כניסות הרכב נמחקו</string>
     <string name="ok">אישור</string>
     <string name="exported_to_json">יוצא ל-JSON</string>
     <string name="imported_from_json">יובא מ-JSON</string>
@@ -42,7 +38,7 @@
     <string name="geofence_saved">המיקום נשמר</string>
     <string name="geofence_deleted">המיקום נמחק</string>
     <string name="geofence_error">שגיאה בניהול המיקום</string>
-    <string name="location_permission_needed">יש צורך בהרשאת מיקום עבור מעקב מיקומים</string>
+    <string name="location_permission_needed">נדרשת הרשאת מיקום</string>
     <string name="current_location">השתמש במיקום הנוכחי</string>
     <string name="enter_coordinates">הזן קואורדינטות</string>
     <string name="latitude">קו רוחב</string>
@@ -55,4 +51,36 @@
     <string name="no_geofences">עדיין לא נוספו מיקומים</string>
     <string name="delete_geofence">מחק מיקום</string>
     <string name="show_car_button">הצג כפתור רכב</string>
+    <string name="background_location_title">גישה למיקום ברקע</string>
+    <string name="background_location_message">הקוילל צריך הרשאה לגשת למיקום שלך ברקע כדי לעקוב אחר הנוכחות שלך במקומות הכולל גם כשהאפליקציה סגורה. ללא הרשאה זו, האפליקציה לא יכולה לעקוב אחר הנוכחות שלך כראוי.</string>
+    <string name="continue_text">המשך</string>
+    <string name="toggle_location_service">הפעל/כבה שרות מיקום</string>
+    <string name="start_location_service">הפעל שרות מיקום</string>
+    <string name="stop_location_service">כבה שרות מיקום</string>
+    <string name="location_service_started">שרות מיקום הופעל</string>
+    <string name="location_service_stopped">שרות מיקום הופסק</string>
+    <string name="menu_location_group">מיקום</string>
+    <string name="menu_data_group">נתונים</string>
+    <string name="menu_car_rides">נסיעות רכב</string>
+    <string name="total_car_rides">סה"כ נסיעות רכב: %1$d</string>
+    <string name="delete_all_car_entries">מחק את כל נסיעות הרכב</string>
+    <string name="all_car_entries_deleted">כל נסיעות הרכב נמחקו</string>
+    
+    <!-- New notification strings -->
+    <string name="location_monitoring_inactive">שירות מעקב מיקום לא פעיל</string>
+    <string name="location_monitoring_inactive_desc">שירות המיקום יתחדש %1$s</string>
+    <string name="location_monitoring_acquiring">מאתר מיקום…</string>
+    <string name="location_monitoring_acquiring_desc">אנא ודא שלמכשיר יש קליטת GPS טובה</string>
+    <string name="location_monitoring_active_desc">עדכון אחרון: לפני %1$d דקות</string>
+    <string name="location_monitoring_recorded">רישום בוצע</string>
+    <string name="location_monitoring_recorded_time">לפני %1$d דקות</string>
+    <string name="location_monitoring_recorded_desc">רישום בוצע %1$s. בדיקה הבאה %2$s</string>
+    <string name="today_morning">היום בבוקר (9:00)</string>
+    <string name="today_afternoon">היום אחה״צ (15:00)</string>
+    <string name="tomorrow_morning">מחר בבוקר (9:00)</string>
+    
+    <!-- Added missing strings -->
+    <string name="location_debug_title">ניפוי שגיאות מיקום</string>
+    <string name="clear_log">נקה יומן</string>
+    <string name="logged_locations">מיקומים מתועדים</string>
 </resources> 
