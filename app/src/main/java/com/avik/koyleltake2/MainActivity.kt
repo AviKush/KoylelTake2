@@ -72,6 +72,7 @@ class MainActivity : AppCompatActivity() {
     private var currentLocation: Location? = null
     private lateinit var locationManager: android.location.LocationManager
     private lateinit var geofenceBroadcastReceiver: CustomGeofenceBroadcastReceiver
+    private var isCarFabEnabled = true // Default state for car FAB
 
     // Add ActivityResultLauncher for location permissions
     private val locationPermissionRequest = registerForActivityResult(
@@ -226,18 +227,12 @@ class MainActivity : AppCompatActivity() {
         toolbar.setBackgroundColor(selectedMainColor)
         toolbar.setTitleTextColor(Color.WHITE)
 
-        // Set FAB color and click listener
-        val fabAdd: com.google.android.material.floatingactionbutton.FloatingActionButton = findViewById(R.id.fabAdd)
-        fabAdd.backgroundTintList = android.content.res.ColorStateList.valueOf(selectedMainColor)
-        fabAdd.setOnClickListener {
-            logCurrentTime()
-        }
-
         // Set up ActionBarDrawerToggle to sync the hamburger icon with the drawer
         val toggle = ActionBarDrawerToggle(
             this, drawerLayout, toolbar,
             R.string.app_name, R.string.app_name
         )
+        toggle.isDrawerIndicatorEnabled = true
         drawerLayout.addDrawerListener(toggle)
         toggle.syncState()
 
@@ -276,6 +271,13 @@ class MainActivity : AppCompatActivity() {
         // Load existing log entries
         loadLogEntries()
 
+        // Set FAB color and click listener
+        val fabAddLogEntry: com.google.android.material.floatingactionbutton.FloatingActionButton = findViewById(R.id.fabAddLogEntry)
+        fabAddLogEntry.backgroundTintList = android.content.res.ColorStateList.valueOf(selectedMainColor)
+        fabAddLogEntry.setOnClickListener {
+            logCurrentTime()
+        }
+
         // Handle navigation drawer item clicks
         navigationView.setNavigationItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
@@ -284,6 +286,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.nav_manage_geofences -> {
                     showManageGeofencesDialog()
+                }
+                R.id.nav_location_debug -> {
+                    showLocationDebugFragment()
                 }
                 R.id.nav_export_json -> {
                     exportToJson()
@@ -318,6 +323,10 @@ class MainActivity : AppCompatActivity() {
         fabCar.setOnClickListener {
             logCarEntry()
         }
+        
+        // Apply car FAB visibility based on saved preference
+        isCarFabEnabled = getSharedPreferences("app_settings", MODE_PRIVATE).getBoolean("car_fab_enabled", true)
+        updateCarFabVisibility()
     }
 
     private fun logCurrentTime() {
@@ -770,8 +779,8 @@ class MainActivity : AppCompatActivity() {
         toolbar.setTitleTextColor(Color.WHITE)
 
         // FAB
-        val fabAdd: com.google.android.material.floatingactionbutton.FloatingActionButton = findViewById(R.id.fabAdd)
-        fabAdd.backgroundTintList = android.content.res.ColorStateList.valueOf(mainColor)
+        val fabAddLogEntry: com.google.android.material.floatingactionbutton.FloatingActionButton = findViewById(R.id.fabAddLogEntry)
+        fabAddLogEntry.backgroundTintList = android.content.res.ColorStateList.valueOf(mainColor)
         
         // Car FAB
         val fabCar: com.google.android.material.floatingactionbutton.FloatingActionButton = findViewById(R.id.fabCar)
@@ -833,9 +842,70 @@ class MainActivity : AppCompatActivity() {
     private fun showCarEntriesDialog() {
         val carEntries = logEntries.filter { it.type == LogEntryType.CAR }
         val sum = carEntries.sumOf { it.amount ?: 0 }
+        
+        // Create dialog layout with toggle switch
+        val dialogLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 32, 32, 32)
+        }
+        
+        // Add message about sum
+        val messageTextView = TextView(this).apply {
+            text = getString(R.string.total_car_entries, sum)
+            textSize = 16f
+            setPadding(0, 0, 0, 24)
+        }
+        dialogLayout.addView(messageTextView)
+        
+        // Add toggle switch for car FAB
+        val switchLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 16, 0, 16)
+        }
+        
+        val switchLabel = TextView(this).apply {
+            text = getString(R.string.show_car_button)
+            textSize = 16f
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                weight = 1f
+            }
+        }
+        
+        val toggleSwitch = android.widget.Switch(this).apply {
+            isChecked = isCarFabEnabled
+            setOnCheckedChangeListener { _, isChecked ->
+                isCarFabEnabled = isChecked
+                getSharedPreferences("app_settings", MODE_PRIVATE).edit()
+                    .putBoolean("car_fab_enabled", isChecked)
+                    .apply()
+                updateCarFabVisibility()
+            }
+        }
+        
+        switchLayout.addView(switchLabel)
+        switchLayout.addView(toggleSwitch)
+        dialogLayout.addView(switchLayout)
+        
+        // Add divider
+        val divider = View(this).apply {
+            setBackgroundColor(Color.LTGRAY)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1
+            ).apply {
+                setMargins(0, 16, 0, 16)
+            }
+        }
+        dialogLayout.addView(divider)
+
+        // Create the dialog
         val dialog = AlertDialog.Builder(this)
             .setTitle(getString(R.string.menu_sum_car_entries))
-            .setMessage(getString(R.string.total_car_entries, sum))
+            .setView(dialogLayout)
             .setPositiveButton(getString(R.string.delete_all_car_entries)) { _, _ ->
                 logEntries.removeAll { it.type == LogEntryType.CAR }
                 hebrewTimestamps.clear()
@@ -846,6 +916,12 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+    
+    // Helper method to update car FAB visibility
+    private fun updateCarFabVisibility() {
+        val fabCar: com.google.android.material.floatingactionbutton.FloatingActionButton = findViewById(R.id.fabCar)
+        fabCar.visibility = if (isCarFabEnabled) View.VISIBLE else View.GONE
     }
 
     private fun showManageGeofencesDialog() {
@@ -1287,5 +1363,56 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Error unregistering receiver", e)
         }
+    }
+
+    /**
+     * Show the location debug fragment
+     */
+    private fun showLocationDebugFragment() {
+        // Hide the main UI components
+        val recyclerView: RecyclerView = findViewById(R.id.recyclerViewTimestamps)
+        val logButton: View = findViewById(R.id.fabAddLogEntry)
+        val carButton: View = findViewById(R.id.fabCar)
+        recyclerView.visibility = View.GONE
+        logButton.visibility = View.GONE
+        carButton.visibility = View.GONE
+        
+        // Create and show the debug fragment
+        val fragment = LocationDebugFragment.newInstance()
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, fragment)
+            .addToBackStack("locationDebug")
+            .commit()
+        
+        // Add back button functionality to toolbar
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.setDisplayShowHomeEnabled(true)
+    }
+    
+    override fun onBackPressed() {
+        if (supportFragmentManager.backStackEntryCount > 0) {
+            supportFragmentManager.popBackStack()
+            // Show the main UI components again
+            val recyclerView: RecyclerView = findViewById(R.id.recyclerViewTimestamps)
+            val logButton: View = findViewById(R.id.fabAddLogEntry)
+            val carButton: View = findViewById(R.id.fabCar)
+            recyclerView.visibility = View.VISIBLE
+            logButton.visibility = View.VISIBLE
+            carButton.visibility = View.VISIBLE
+            
+            // Reset toolbar
+            supportActionBar?.setDisplayHomeAsUpEnabled(false)
+            supportActionBar?.setDisplayShowHomeEnabled(false)
+        } else {
+            super.onBackPressed()
+        }
+    }
+    
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == android.R.id.home) {
+            onBackPressed()
+            return true
+        }
+        return super.onOptionsItemSelected(item)
     }
 }

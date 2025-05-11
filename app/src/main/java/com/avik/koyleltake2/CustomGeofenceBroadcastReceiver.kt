@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.widget.Toast
+import java.util.*
 
 /**
  * Broadcast receiver that handles geofence transition events.
@@ -50,12 +51,29 @@ class CustomGeofenceBroadcastReceiver : BroadcastReceiver() {
             val currentTime = System.currentTimeMillis()
             val formattedTime = app.formatTimestamp(currentTime)
             
+            // Determine seder based on hour
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = currentTime
+            val hour = calendar.get(Calendar.HOUR_OF_DAY)
+            val seder = when (hour) {
+                in 9..12 -> "'סדר א"
+                in 15..18 -> "'סדר ב"
+                else -> ""
+            }
+            
+            // Format the location name with seder if applicable
+            val formattedLocationName = if (seder.isNotEmpty()) {
+                "$locationName $seder"
+            } else {
+                locationName
+            }
+            
             // Create log entry
             val logEntry = LogEntry(
                 id = currentTime,
                 timestamp = formattedTime,
                 type = LogEntryType.GEOFENCE,
-                locationName = locationName
+                locationName = formattedLocationName
             )
             
             // Save the log entry

@@ -24,17 +24,29 @@
                 app:titleTextAppearance="@style/Toolbar.TitleText"
                 app:title="@string/app_name" />
 
-            <!-- RecyclerView for displaying timestamps -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewTimestamps"
+            <!-- Main content container -->
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1" />
+                android:layout_weight="1">
+
+                <!-- RecyclerView for displaying timestamps -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerViewTimestamps"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <!-- Fragment container for screens like debug view -->
+                <FrameLayout
+                    android:id="@+id/fragmentContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+            </FrameLayout>
         </LinearLayout>
 
         <!-- FloatingActionButton should be inside FrameLayout, not DrawerLayout -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabAdd"
+            android:id="@+id/fabAddLogEntry"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|start"

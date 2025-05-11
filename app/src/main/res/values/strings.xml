@@ -18,11 +18,11 @@
     <string name="choose_main_color">Choose main color</string>
     <string name="choose_background_color_1">Choose background color 1</string>
     <string name="choose_background_color_2">Choose background color 2</string>
-    <string name="choose_text_color">Choose text color</string>
+    <string name="choose_text_color">Choose Text Color</string>
     <string name="reset">Reset</string>
     <string name="cancel">Cancel</string>
     <string name="save">Save</string>
-    <string name="colors_saved">Colors saved!</string>
+    <string name="colors_saved">Colors saved</string>
     <string name="choose_colors">Choose Colors</string>
     <string name="total_car_entries">Total car entries: %1$d</string>
     <string name="delete_all_car_entries">Delete All Car Entries</string>
@@ -49,9 +49,18 @@
     <string name="longitude">Longitude</string>
     
     <!-- Custom geofence notification strings -->
-    <string name="location_monitoring_title">Location Monitoring</string>
-    <string name="location_monitoring_text">Monitoring location for automatic logging</string>
+    <string name="location_monitoring_title">Location Monitoring Active</string>
+    <string name="location_monitoring_text">Monitoring your location for geofence transitions</string>
     <string name="geofence_entered">Entered location: %1$s</string>
     <string name="no_geofences">No locations added yet</string>
     <string name="delete_geofence">Delete location</string>
+    
+    <!-- Location debug strings -->
+    <string name="menu_location_debug">Location Debug</string>
+    <string name="location_debug_title">Location Debug Information</string>
+    <string name="clear_log">Clear Log</string>
+    <string name="logged_locations">Logged locations: %1$d</string>
+    <string name="no_location_data">No location data available</string>
+    <string name="car_entry_description">Entered %s</string>
+    <string name="show_car_button">Show car button</string>
 </resources>

@@ -22,7 +22,7 @@
     <string name="reset">איפוס</string>
     <string name="cancel">ביטול</string>
     <string name="save">שמור</string>
-    <string name="colors_saved">הצבעים נשמרו!</string>
+    <string name="colors_saved">צבעים נשמרו</string>
     <string name="choose_colors">בחר צבעים</string>
     <string name="total_car_entries">סה"כ כניסות רכב: %1$d</string>
     <string name="delete_all_car_entries">מחק את כל כניסות הרכב</string>
@@ -54,4 +54,5 @@
     <string name="geofence_entered">נכנסת למיקום: %1$s</string>
     <string name="no_geofences">עדיין לא נוספו מיקומים</string>
     <string name="delete_geofence">מחק מיקום</string>
+    <string name="show_car_button">הצג כפתור רכב</string>
 </resources> 

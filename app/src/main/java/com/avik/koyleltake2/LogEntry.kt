@@ -1,5 +1,7 @@
 package com.avik.koyleltake2
 
+import java.io.Serializable
+
 enum class LogEntryType { NORMAL, CAR, GEOFENCE }
 
 data class LogEntry(
@@ -8,4 +10,4 @@ data class LogEntry(
     val type: LogEntryType = LogEntryType.NORMAL,
     val amount: Int? = null,
     val locationName: String? = null
-)
+) : Serializable

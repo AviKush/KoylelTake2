@@ -11,29 +11,41 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * A foreground service that monitors device location and checks for geofence transitions.
+ * This implementation uses only Android's standard LocationManager APIs.
  */
 class LocationMonitoringService : Service() {
 
     companion object {
         private const val TAG = "LocationMonitoringService"
-        private const val NOTIFICATION_ID = 12345
-        private const val CHANNEL_ID = "geofence_channel"
+        private const val NOTIFICATION_ID = 1
+        private const val CHANNEL_ID = "location_monitoring_channel"
+        private const val CHANNEL_NAME = "Location Monitoring"
         
-        // Update intervals
-        private const val LOCATION_UPDATE_INTERVAL = 60000L // 1 minute
-        private const val LOCATION_FASTEST_INTERVAL = 30000L // 30 seconds
-        private const val LOCATION_DISTANCE_THRESHOLD = 10f // 10 meters
+        // Define action for broadcasting new log entries
+        const val ACTION_NEW_LOG_ENTRY = "com.avik.koyleltake2.NEW_LOG_ENTRY"
+        const val EXTRA_LOG_ENTRY = "log_entry"
+        
+        // Update intervals (in milliseconds)
+        private const val LOCATION_UPDATE_INTERVAL = 15000L // 15 seconds
+        private const val LOCATION_MIN_DISTANCE = 10f // 10 meters
     }
     
     private lateinit var locationManager: LocationManager
     private lateinit var customGeofencingManager: CustomGeofencingManager
+    private lateinit var locationDebugManager: LocationDebugManager
     
+    private var isTracking = false
+    
+    // Location listener to receive location updates
     private val locationListener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
             handleLocationUpdate(location)
@@ -47,13 +59,17 @@ class LocationMonitoringService : Service() {
         @Deprecated("Deprecated in Java")
         override fun onProviderEnabled(provider: String) {
             // Try to request location updates again if provider becomes available
-            requestLocationUpdates()
+            if (!isTracking) {
+                requestLocationUpdates()
+            }
         }
         
         @Deprecated("Deprecated in Java")
         override fun onProviderDisabled(provider: String) {
             // Provider disabled - we might need to switch providers
-            requestLocationUpdates()
+            if (isTracking) {
+                requestLocationUpdates()
+            }
         }
     }
     
@@ -63,14 +79,24 @@ class LocationMonitoringService : Service() {
         // Initialize managers
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         customGeofencingManager = CustomGeofencingManager(this)
+        locationDebugManager = LocationDebugManager.getInstance(this)
         
         // Create notification channel for Android O+
         createNotificationChannel()
+        
+        // Start as a foreground service with notification
+        startForeground(NOTIFICATION_ID, createNotification())
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Start as a foreground service with notification
-        startForeground(NOTIFICATION_ID, createNotification())
+        Log.d(TAG, "Service started")
+        
+        // Check if we're within active hours
+        if (!isWithinActiveHours()) {
+            Log.d(TAG, "Outside active hours, pausing location updates")
+            stopLocationUpdates()
+            return START_STICKY
+        }
         
         // Request location updates
         requestLocationUpdates()
@@ -87,11 +113,7 @@ class LocationMonitoringService : Service() {
         super.onDestroy()
         
         // Stop location updates
-        try {
-            locationManager.removeUpdates(locationListener)
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Error removing location updates", e)
-        }
+        stopLocationUpdates()
     }
     
     /**
@@ -101,10 +123,10 @@ class LocationMonitoringService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Geofence Service",
+                CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Used for geofence monitoring"
+                description = "Used for location monitoring"
                 lightColor = Color.BLUE
                 setShowBadge(false)
             }
@@ -128,7 +150,7 @@ class LocationMonitoringService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.location_monitoring_title))
             .setContentText(getString(R.string.location_monitoring_text))
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stand)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
@@ -149,15 +171,25 @@ class LocationMonitoringService : Service() {
         }
         
         try {
-            // Try GPS provider first
+            // First check if GPS is enabled
+            if (!isLocationEnabled()) {
+                showLocationSettingsDialog()
+                return
+            }
+            
+            // Stop any existing updates
+            stopLocationUpdates()
+            
+            // Try GPS provider first (most accurate)
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 locationManager.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER,
                     LOCATION_UPDATE_INTERVAL,
-                    LOCATION_DISTANCE_THRESHOLD,
+                    LOCATION_MIN_DISTANCE,
                     locationListener
                 )
-                Log.d(TAG, "Registered for GPS updates")
+                Log.d(TAG, "Registered for GPS updates every $LOCATION_UPDATE_INTERVAL ms")
+                isTracking = true
             }
             
             // Also try network provider for better indoor performance
@@ -165,27 +197,15 @@ class LocationMonitoringService : Service() {
                 locationManager.requestLocationUpdates(
                     LocationManager.NETWORK_PROVIDER,
                     LOCATION_UPDATE_INTERVAL,
-                    LOCATION_DISTANCE_THRESHOLD,
+                    LOCATION_MIN_DISTANCE,
                     locationListener
                 )
-                Log.d(TAG, "Registered for network updates")
-            }
-            
-            // Passive provider as a fallback (receives updates triggered by other apps)
-            if (locationManager.isProviderEnabled(LocationManager.PASSIVE_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                    LocationManager.PASSIVE_PROVIDER,
-                    LOCATION_UPDATE_INTERVAL,
-                    LOCATION_DISTANCE_THRESHOLD,
-                    locationListener
-                )
-                Log.d(TAG, "Registered for passive updates")
+                Log.d(TAG, "Registered for network location updates")
+                isTracking = true
             }
             
             // If no provider is available, log an error
-            if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) &&
-                !locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) &&
-                !locationManager.isProviderEnabled(LocationManager.PASSIVE_PROVIDER)) {
+            if (!isTracking) {
                 Log.e(TAG, "No location provider available")
             }
             
@@ -197,12 +217,144 @@ class LocationMonitoringService : Service() {
     }
     
     /**
+     * Stop location updates
+     */
+    private fun stopLocationUpdates() {
+        try {
+            locationManager.removeUpdates(locationListener)
+            isTracking = false
+            Log.d(TAG, "Location updates stopped")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping location updates", e)
+        }
+    }
+    
+    /**
      * Handle location updates and check for geofence transitions
      */
     private fun handleLocationUpdate(location: Location) {
         Log.d(TAG, "Location update: ${location.latitude}, ${location.longitude}, accuracy: ${location.accuracy}m")
         
+        // Check for nearest geofence and calculate distance
+        val geofences = customGeofencingManager.getGeofences()
+        val geofenceInfo = buildGeofenceDebugInfo(location, geofences)
+        
+        // Save to debug manager
+        locationDebugManager.addLocationEntry(location, geofenceInfo)
+        
         // Process the location through our geofencing manager
-        customGeofencingManager.processLocation(location)
+        val result = customGeofencingManager.processLocation(location)
+        
+        // If the geofence manager detected a transition, handle it
+        if (result.transitionDetected) {
+            handleGeofenceTransition(result.geofenceId, result.transitionType)
+        }
+    }
+    
+    /**
+     * Build debug information about nearby geofences
+     */
+    private fun buildGeofenceDebugInfo(location: Location, geofences: List<CustomGeofencingManager.CustomGeofence>): String {
+        if (geofences.isEmpty()) {
+            return "No geofences configured"
+        }
+        
+        val nearestGeofence = geofences.minByOrNull { 
+            getDistanceTo(location, it.latitude, it.longitude)
+        }
+        
+        nearestGeofence?.let {
+            val distance = getDistanceTo(location, it.latitude, it.longitude)
+            val isInside = distance <= it.radius
+            
+            return if (isInside) {
+                "INSIDE '${it.name}' (${distance.toInt()}m of ${it.radius.toInt()}m radius)"
+            } else {
+                "OUTSIDE '${it.name}' (${distance.toInt()}m away, radius ${it.radius.toInt()}m)"
+            }
+        }
+        
+        return "Geofence data unavailable"
+    }
+    
+    /**
+     * Calculate distance between two points
+     */
+    private fun getDistanceTo(location: Location, latitude: Double, longitude: Double): Float {
+        val results = FloatArray(1)
+        Location.distanceBetween(
+            location.latitude, location.longitude,
+            latitude, longitude,
+            results
+        )
+        return results[0]
+    }
+    
+    /**
+     * Handle a geofence transition event
+     */
+    private fun handleGeofenceTransition(geofenceId: String, transitionType: Int) {
+        Log.d(TAG, "Geofence transition: $geofenceId, type: $transitionType")
+        
+        // Only handle "enter" transitions (defined as constant 1 in CustomGeofencingManager)
+        if (transitionType == CustomGeofencingManager.GEOFENCE_TRANSITION_ENTER) {
+            // Create and save a log entry using the original LogEntry structure
+            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val timestamp = sdf.format(Date())
+            
+            val entry = LogEntry(
+                id = System.currentTimeMillis(),
+                timestamp = timestamp,
+                type = LogEntryType.GEOFENCE,
+                locationName = geofenceId
+            )
+            
+            // Send broadcast with the entry
+            val intent = Intent(ACTION_NEW_LOG_ENTRY)
+            intent.putExtra(EXTRA_LOG_ENTRY, entry)
+            sendBroadcast(intent)
+            
+            // Pause location updates until next period
+            stopLocationUpdates()
+        }
+    }
+    
+    /**
+     * Check if location services are enabled
+     */
+    private fun isLocationEnabled(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            locationManager.isLocationEnabled
+        } else {
+            val gpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+            val networkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+            gpsEnabled || networkEnabled
+        }
+    }
+    
+    /**
+     * Show dialog to enable location settings
+     */
+    private fun showLocationSettingsDialog() {
+        val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+    }
+    
+    /**
+     * Check if current time is within active hours
+     */
+    private fun isWithinActiveHours(): Boolean {
+        val calendar = Calendar.getInstance()
+        val hour = calendar.get(Calendar.HOUR_OF_DAY)
+        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+        
+        // Check if it's Sunday (1) through Thursday (5)
+        if (dayOfWeek < Calendar.SUNDAY || dayOfWeek > Calendar.THURSDAY) {
+            return false
+        }
+        
+        // Check if it's between 9-13 or 15-19
+        return (hour in 9..12) || (hour in 15..18)
     }
 } 

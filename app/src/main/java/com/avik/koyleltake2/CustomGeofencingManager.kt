@@ -135,9 +135,18 @@ class CustomGeofencingManager(private val context: Context) {
     }
     
     /**
-     * Check if a location is inside any geofence and trigger transitions
+     * Process a location update and return a result object with transition information.
+     * This is an improved version that returns a result object instead of just broadcasting.
      */
-    fun processLocation(location: Location) {
+    data class GeofenceResult(
+        val transitionDetected: Boolean = false,
+        val geofenceId: String = "",
+        val transitionType: Int = 0
+    )
+    
+    fun processLocation(location: Location): GeofenceResult {
+        var result = GeofenceResult()
+        
         for (geofence in geofences) {
             val distance = getDistanceTo(location, geofence.latitude, geofence.longitude)
             val isInside = distance <= geofence.radius
@@ -153,9 +162,11 @@ class CustomGeofencingManager(private val context: Context) {
                 if (isInside) {
                     // Entered geofence
                     triggerGeofenceTransition(geofence, GEOFENCE_TRANSITION_ENTER)
+                    result = GeofenceResult(true, geofence.id, GEOFENCE_TRANSITION_ENTER)
                 } else {
                     // Exited geofence
                     triggerGeofenceTransition(geofence, GEOFENCE_TRANSITION_EXIT)
+                    result = GeofenceResult(true, geofence.id, GEOFENCE_TRANSITION_EXIT)
                 }
                 
                 // Update state
@@ -164,6 +175,8 @@ class CustomGeofencingManager(private val context: Context) {
                 geofenceStates[geofence.id] = state
             }
         }
+        
+        return result
     }
     
     /**
@@ -256,6 +269,32 @@ class CustomGeofencingManager(private val context: Context) {
         }
     }
     
+    /**
+     * Get geofence status information for a location (used for debugging)
+     */
+    fun getGeofenceStatus(location: Location): String {
+        if (geofences.isEmpty()) {
+            return "No geofences configured"
+        }
+        
+        val nearestGeofence = geofences.minByOrNull { 
+            getDistanceTo(location, it.latitude, it.longitude)
+        }
+        
+        nearestGeofence?.let {
+            val distance = getDistanceTo(location, it.latitude, it.longitude)
+            val isInside = distance <= it.radius
+            
+            return if (isInside) {
+                "INSIDE '${it.name}' (${distance.toInt()}m of ${it.radius.toInt()}m radius)"
+            } else {
+                "OUTSIDE '${it.name}' (${distance.toInt()}m away, radius ${it.radius.toInt()}m)"
+            }
+        }
+        
+        return "Geofence data unavailable"
+    }
+
     /**
      * Start the location monitoring service
      */
